@@ -12,6 +12,10 @@ import ProjectManager from './pages/ProjectManager';
 import ProjectTasks from './pages/Project_Tasks';
 import SkillAssessmentTest from './pages/Skill Assessment Test';
 import SkillAssessmentQuiz from './pages/Skill Assessment Quiz';
+import AdminDashboard from './pages/AdminDashboard';      
+import AdminRoute from './components/AdminRoute';
+import QuizResult from './pages/QuizResult';
+
 import './App.css';
 
 function App() {
@@ -28,11 +32,12 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
             <Route path="dashboard" element={<Dashboard />} />
-            
+            <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="pm" element={<ProjectManager />} />
             <Route path="project-tasks" element={<ProjectTasks />} />
             <Route path="skill-assessment" element={<SkillAssessmentTest />} />
             <Route path="skill-assessment/quiz" element={<SkillAssessmentQuiz />} />
+            <Route path="/quiz-result" element={<QuizResult />} />
           </Route>
         </Routes>
       </div>

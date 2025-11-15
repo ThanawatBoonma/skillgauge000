@@ -8,9 +8,106 @@
 
 .choices { display: grid; gap: 0.6rem; }
 .choice { position: relative; display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 0.75rem; padding: 0.7rem 0.9rem; border: 1px solid #cfe0fc; background: #f7fbff; border-radius: 10px; cursor: pointer; }
-.choice input { display: none; }
-.choice .bullet { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #90bdfd; background: #fff; box-shadow: inset 0 0 0 4px #fff; }
-.choice.selected .bullet { background: #1a73e8; border-color: #1a73e8; box-shadow: inset 0 0 0 4px #fff; }
+
+/* ให้ input อยู่ใน DOM แต่มองไม่เห็น (ไม่ใช้ display:none) เพื่อให้ :checked ทำงานและโฟกัสได้ */
+.choice input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+/* แก้ layout ให้ bullet อยู่ทางซ้ายและ text อยู่ขวา (ยังคง grid-template-columns) */
+.choice {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr; /* เพิ่มช่องว่างนิดหน่อย */
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #cfe0fc;
+  background: #f7fbff;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: visible;
+}
+
+/* วงกลมภายนอก */
+.choice .bullet {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #90bdfd;
+  background: #fff;
+  position: relative;
+  transition: border-color 140ms ease, transform 140ms ease;
+  display: inline-block;
+  box-sizing: border-box;
+}
+
+/* จุดทึบตรงกลาง (เริ่มซ่อนด้วย scale(0)) */
+.choice .bullet::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* กรณี label มี class selected (React) -> ให้แสดงทันที */
+.choice.selected .bullet {
+  border-color: #1a73e8;
+}
+.choice.selected .bullet::after {
+  transform: translate(-50%, -50%) scale(1);
+  background: #1a73e8;
+  opacity: 1;
+}
+
+/* กรณี input ถูก checked (เป็นทางสำรอง / ความแม่นยำสูง) */
+.choice input:checked + .bullet {
+  border-color: #1a73e8;
+}
+.choice input:checked + .bullet::after {
+  transform: translate(-50%, -50%) scale(1);
+  background: #1a73e8;
+  opacity: 1;
+}
+
+/* hover / focus effect */
+.choice:hover .bullet,
+.choice:focus-within .bullet {
+  transform: scale(1.04);
+  border-color: #6ea8ff;
+}
+.choice:focus-within {
+  outline: 3px solid rgba(26,115,232,0.08);
+  outline-offset: 2px;
+}
+
+
+/* เพิ่ม effect เล็ก ๆ เมื่อ hover หรือ focus */
+.choice:hover .bullet,
+.choice:focus-within .bullet {
+  transform: scale(1.03);
+  border-color: #6ea8ff;
+}
+.choice:focus-within {
+  outline: 3px solid rgba(26,115,232,0.08);
+  outline-offset: 2px;
+}
+
 
 .nav-actions { margin-top: 1rem; display: flex; justify-content: space-between; }
 .btn-primary { background: #1a73e8; color: #fff; border: none; border-radius: 10px; padding: 0.6rem 1.25rem; font-weight: 700; cursor: pointer; }

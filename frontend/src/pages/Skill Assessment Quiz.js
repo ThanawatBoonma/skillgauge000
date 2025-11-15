@@ -1,44 +1,14 @@
-import React, { useMemo, useState } from 'react';
+// SkillAssessmentQuiz.js (replace your existing file)
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import './SkillAssessmentQuiz.css';
 import { mockUser } from '../mock/mockData';
 
-const sampleQuestions = [
-  {
-    id: 'q1',
-    text: 'หน้าที่หลักของผนังรับน้ำหนักในอาคารคืออะไร',
-    choices: [
-      'เพื่อรองรับน้ำหนักของโครงสร้างด้านบน',
-      'เพื่อให้มีฉนวนกันความร้อนต่อการเปลี่ยนแปลงของอุณหภูมิ',
-      'เพื่อทำหน้าที่เป็นฉากกั้นระหว่างห้อง',
-      'เพื่อเพิ่มความสวยงามให้กับอาคาร',
-    ],
-    answer: 0,
-  },
-  {
-    id: 'q2',
-    text: 'ก่อนเทคอนกรีตต้องตรวจสอบสิ่งใดเป็นอันดับแรก',
-    choices: [
-      'ความพร้อมของเหล็กเสริมและแบบหล่อ',
-      'สีของคอนกรีต',
-      'จำนวนแรงงานในไซต์งาน',
-      'ระดับเสียงรบกวนบริเวณหน้างาน',
-    ],
-    answer: 0,
-  },
-  {
-    id: 'q3',
-    text: 'อุปกรณ์ป้องกันส่วนบุคคล (PPE) ข้อใดสำคัญที่สุดสำหรับงานเจียรเหล็ก',
-    choices: [
-      'แว่นตานิรภัยและหน้ากากป้องกันสะเก็ด',
-      'รองเท้าแตะ',
-      'หมวกแก๊ป',
-      'ถุงมือผ้าอย่างเดียว',
-    ],
-    answer: 0,
-  },
-];
+const PER_PAGE = 20; // ตามที่ต้องการ: แสดงทีละ 20 ข้อ
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+
+const clean = (s) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : s);
 
 const SkillAssessmentQuiz = () => {
   const location = useLocation();
@@ -46,32 +16,104 @@ const SkillAssessmentQuiz = () => {
   const navUser = location.state?.user;
   const user = navUser || { ...mockUser, role: 'worker' };
 
-  const questions = useMemo(() => sampleQuestions, []);
-  const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); // { qid: choiceIndex }
+  const [questions, setQuestions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [error, setError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
 
-  const q = questions[idx];
-  const total = questions.length;
-  const percent = Math.round(((idx) / total) * 100);
+  const set_no = 1;
 
-  const toggleChoice = (choiceIndex) => {
-    setAnswers((a) => {
-      const current = a[q.id];
-      if (current === choiceIndex) {
-        const { [q.id]: _omit, ...rest } = a;
-        return rest; // deselect
+  useEffect(() => {
+    const abortController = new AbortController();
+    const fetchQuestions = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // include sessionId if we have one, otherwise backend will create one
+        const params = new URLSearchParams({ set_no: set_no, page: page, per_page: PER_PAGE });
+        if (sessionId) params.set('sessionId', sessionId);
+        const url = `${API_BASE}/api/questions/structural?${params.toString()}`;
+        const res = await fetch(url, { signal: abortController.signal });
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Fetch error ${res.status} ${text}`);
+        }
+        const json = await res.json();
+        // save sessionId if provided
+        if (json.sessionId) setSessionId(json.sessionId);
+        setTotal(json.total || 0);
+        setTotalPages(json.totalPages || 1);
+
+        // --- แก้ตรงนี้: แปลง id เป็น string และ normalize ข้อความ/choices ---
+        const qs = (json.questions || []).map(q => ({
+          ...q,
+          id: String(q.id), // แปลงเป็น string เสมอ เพื่อให้การแม็ป answers ไม่ผิดชนิด
+          question_no: q.question_no,
+          text: clean(q.text),
+          choices: (q.choices || []).map(c => clean(c))
+        }));
+        setQuestions(qs);
+      } catch (err) {
+        if (abortController.signal.aborted) return;
+        console.error('Failed to load questions', err);
+        setError('ไม่สามารถโหลดคำถามได้');
+      } finally {
+        if (!abortController.signal.aborted) setLoading(false);
       }
-      return { ...a, [q.id]: choiceIndex };
+    };
+    fetchQuestions();
+    return () => abortController.abort();
+  }, [page, sessionId]);
+
+  const isLastPage = page >= totalPages;
+  const answeredCount = Object.keys(answers).length;
+  const percent = total ? Math.round((answeredCount / total) * 100) : 0;
+
+  // --- แก้ toggleChoice ให้เก็บ string เสมอ ---
+  const toggleChoice = (qid, choiceIndex) => {
+    const key = String(qid);
+    const val = String(choiceIndex);
+    setAnswers(prev => {
+      const cur = prev[key];
+      if (cur === val) {
+        const { [key]: _omit, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [key]: val };
     });
   };
 
-  const prev = () => setIdx((i) => Math.max(0, i - 1));
-  const next = () => {
-    if (idx < total - 1) return setIdx(idx + 1);
-    // submit mock
-    const correct = questions.reduce((acc, qq) => acc + (answers[qq.id] === qq.answer ? 1 : 0), 0);
-    alert(`ส่งคำตอบแล้ว\nคะแนน (ชั่วคราว): ${correct}/${total}`);
-    navigate('/dashboard', { state: { user } });
+  const goPrevPage = () => setPage(p => Math.max(1, p - 1));
+  const goNextPageOrSubmit = async () => {
+    if (!isLastPage) {
+      setPage(p => Math.min(totalPages, p + 1));
+      return;
+    }
+
+    try {
+      if (!sessionId) throw new Error('sessionId missing');
+      // Note: answers are strings of indices ("0","1","2","3")
+      const payload = { sessionId, answers, user_id: user?.id || null };
+      const res = await fetch(`${API_BASE}/api/quiz/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Submit failed ${res.status}`);
+      }
+      const result = await res.json();
+      // navigate to result page and pass result
+      navigate('/quiz-result', { state: { result } });
+    } catch (err) {
+      console.error('Submit error', err);
+      alert('เกิดข้อผิดพลาดในการส่งคำตอบ: ' + err.message);
+    }
   };
 
   return (
@@ -87,7 +129,7 @@ const SkillAssessmentQuiz = () => {
 
       <main className="dash-main">
         <div className="dash-topbar">
-          <div className="role-pill">Worker</div>
+          <div className="role-pill">{user?.role ? user.role.charAt(0).toUpperCase()+user.role.slice(1) : 'Worker'}</div>
           <div className="top-actions">
             <span className="profile">
               <span className="avatar" />
@@ -104,37 +146,58 @@ const SkillAssessmentQuiz = () => {
             <div className="pct">{percent}%</div>
           </div>
 
-          <h1>คำถามที่ {idx + 1} จาก {total}</h1>
-          <p className="question">{q.text}</p>
+          <h1>หน้า {page} / {totalPages} — คำถามทั้งหมด {total}</h1>
 
-          <div className="choices">
-            {q.choices.map((c, i) => (
-              <label
-                key={i}
-                className={`choice ${answers[q.id] === i ? 'selected' : ''}`}
-                role="radio"
-                aria-checked={answers[q.id] === i}
-                tabIndex={0}
-                onClick={() => toggleChoice(i)}
-                onKeyDown={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleChoice(i); }
-                }}
-              >
-                <input
-                  type="radio"
-                  name={q.id}
-                  checked={answers[q.id] === i}
-                  readOnly
-                />
-                <span className="bullet" />
-                <span className="text">{c}</span>
-              </label>
+          {loading && <p>กำลังโหลดคำถาม...</p>}
+          {error && <p className="error">{error}</p>}
+
+          {!loading && !questions.length && <p>ไม่มีคำถามในหน้านี้</p>}
+
+          <div className="question-list">
+            {questions.map((q) => (
+              <div key={q.id} className="question-block">
+                <div className="q-header">
+                  <strong>{q.question_no}.</strong>
+                </div>
+                <p className="question">{q.text}</p>
+
+                <div className="choices">
+                  {q.choices.map((c, ci) => {
+                    const key = String(q.id);
+                    const isSelected = String(answers[key]) === String(ci);
+                    return (
+                      <label
+                        key={ci}
+                        className={`choice ${isSelected ? 'selected' : ''}`}
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        onClick={() => toggleChoice(q.id, ci)}
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleChoice(q.id, ci); }
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name={`q-${q.id}`}
+                          checked={isSelected}
+                          readOnly
+                        />
+                        <span className="bullet" />
+                        <span className="text">{c}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             ))}
           </div>
 
           <div className="nav-actions">
-            <button className="btn-secondary" onClick={prev} disabled={idx === 0}>ก่อนหน้า</button>
-            <button className="btn-primary" onClick={next}>{idx === total - 1 ? 'ส่งคำตอบ' : 'ต่อไป'}</button>
+            <button className="btn-secondary" onClick={goPrevPage} disabled={page === 1}>ก่อนหน้า</button>
+            <button className="btn-primary" onClick={goNextPageOrSubmit}>
+              {isLastPage ? 'ส่งคำตอบ' : 'ต่อไป'}
+            </button>
           </div>
         </div>
       </main>

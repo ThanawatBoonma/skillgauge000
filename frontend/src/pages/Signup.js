@@ -9,7 +9,7 @@ const Signup = () => {
     full_name: '',
     email: '',
     phone: '',
-    role: 'project_manager',
+    role: '',
     username: '',
     password: '',
     confirmPassword: ''
