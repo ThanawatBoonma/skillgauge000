@@ -28,37 +28,47 @@ const pool = mysql.createPool({
 const JWT_SECRET = process.env.JWT_SECRET || 'please_change_this_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'; 
 
-//  Register endpoint 
+// ---------------------------------------------
+// REGISTER (no username)
+// ---------------------------------------------
 app.post('/api/register',
   // validation
   body('email').isEmail().withMessage('Invalid email'),
   body('password').isLength({ min: 6 }).withMessage('Password min 6 chars'),
-  body('username').notEmpty().withMessage('Username required'),
 
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) 
+      return res.status(400).json({ errors: errors.array() });
 
-    const { full_name, email, phone, username, password, birthday } = req.body;
-    const role = 'worker'; // บังคับเป็น worker
+    const { full_name, email, phone, password, birthday } = req.body;
+    const role = 'worker'; // บังคับทุกคนเป็น worker
 
     try {
-      // Check duplicate email or username
-      const [dupEmail] = await pool.query('SELECT id FROM dbuser WHERE email = ?', [email]);
-      if (dupEmail.length) return res.status(409).json({ error: 'Email already registered' });
-
-      const [dupUser] = await pool.query('SELECT id FROM dbuser WHERE username = ?', [username]);
-      if (dupUser.length) return res.status(409).json({ error: 'Username already taken' });
+      // Check duplicate email
+      const [dupEmail] = await pool.query(
+        'SELECT id FROM dbuser WHERE email = ?', 
+        [email]
+      );
+      if (dupEmail.length) 
+        return res.status(409).json({ error: 'Email already registered' });
 
       // Hash password
       const hash = bcrypt.hashSync(password, 12);
 
-      // Insert user into dbuser
-      const sql = `INSERT INTO dbuser (name, email, phone, role, username, password) VALUES (?, ?, ?, ?, ?, ?)`;
-      const [result] = await pool.query(sql, [full_name, email, phone, role, username, hash]);
+      // Insert user (no username)
+      const sql = `
+        INSERT INTO dbuser (name, email, phone, birthday, role, password) 
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+      const [result] = await pool.query(sql, [full_name, email, phone, birthday, role, hash]);
 
-      // return new user id (no password)
-      res.status(201).json({ id: result.insertId, email, username, role });
+      res.status(201).json({ 
+        id: result.insertId, 
+        email, 
+        role 
+      });
+
     } catch (err) {
       console.error('Server error:', err);
       res.status(500).json({ error: 'Server error' });
@@ -66,63 +76,60 @@ app.post('/api/register',
   }
 );
 
-// Login (Email + Password only)
+// ---------------------------------------------
+// LOGIN (email + password)
+// ---------------------------------------------
 app.post('/api/auth/login',
   body('email').isEmail().withMessage('Email is required'),
   body('password').notEmpty().withMessage('Password is required'),
+
   async (req, res) => {
 
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    if (!errors.isEmpty()) 
+      return res.status(400).json({ errors: errors.array() });
 
     const { email, password } = req.body;
 
     try {
-      // ค้นหา user ด้วย email
-      const [rows] = await pool.query(
-        'SELECT id, name, email, username, phone, role, password FROM dbuser WHERE email = ? LIMIT 1',
-        [email]
-      );
+      // Query user without username
+      const [rows] = await pool.query(`
+        SELECT id, name, email, phone, birthday, role, password 
+        FROM dbuser 
+        WHERE email = ? 
+        LIMIT 1
+      `, [email]);
 
       if (!rows.length)
         return res.status(401).json({ error: 'Invalid email or password' });
 
       const user = rows[0];
 
-      // ตรวจสอบ password
+      // Check password
       const match = bcrypt.compareSync(password, user.password || '');
       if (!match)
         return res.status(401).json({ error: 'Invalid email or password' });
 
-      // role เป็น string เดี่ยว เช่น "worker"
-      // หรือถ้าเก็บเป็นหลาย role ด้วย comma ก็รองรับเหมือนเดิม
-      let roles = [];
-      if (user.role)
-        roles = Array.isArray(user.role)
-          ? user.role
-          : String(user.role).split(',').map(r => r.trim()).filter(Boolean);
+      // Convert role -> array
+      const roles = String(user.role).split(',').map(r => r.trim());
 
-      // สร้าง JWT
+      // JWT payload (no username)
       const payload = { 
         id: user.id,
         email: user.email,
-        username: user.username,
         roles 
       };
 
-      const token = jwt.sign(payload, JWT_SECRET, {
-        expiresIn: JWT_EXPIRES_IN
-      });
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-      // ส่งกลับข้อมูล user
       res.json({
         token,
         user: {
           id: user.id,
           name: user.name,
           email: user.email,
-          username: user.username,
           phone: user.phone,
+          birthday: user.birthday,
           roles
         }
       });
@@ -133,6 +140,9 @@ app.post('/api/auth/login',
     }
   }
 );
+
+module.exports = app;
+
 
 //  Helpers 
 function uuidHex() {
