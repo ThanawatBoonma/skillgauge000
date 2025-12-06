@@ -1,8 +1,7 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config(); // โหลด .env เผื่อไว้
+require('dotenv').config(); 
 
-// สร้างและ export pool การเชื่อมต่อ
-// เราจะใช้ค่าจาก .env ที่ถูกโหลดโดย index.js หลัก
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -13,7 +12,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// พิมพ์ log เพื่อยืนยันว่าเชื่อมต่อสำเร็จ (optional)
+
 pool.getConnection()
   .then(connection => {
     console.log('MySQL Database connected successfully!');

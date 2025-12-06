@@ -1,69 +1,56 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 
-// ค้นหา User ด้วย Email
+// ค้นหา User ด้วย Email (ใช้ตอน Login)
 exports.findByEmail = async (email) => {
-  try {
-    // เลือกทุกฟิลด์ที่จำเป็น (รวมถึง password เพื่อเอาไปเช็ค Login)
-    const sql = `
-      SELECT 
-        id, prefix, first_name, last_name, citizen_id, technician_type,
-        phone_number, birth_date, address_details, zip_code, sub_district, province,
-        email, password, role
-      FROM dbuser 
-      WHERE email = ? 
-      LIMIT 1
-    `;
-    const [rows] = await pool.query(sql, [email]);
-    return rows[0];
-  } catch (err) {
-    console.error('Error finding user by email:', err);
-    throw err;
-  }
+  const sql = 'SELECT * FROM dbuser WHERE email = ? LIMIT 1';
+  const [rows] = await pool.query(sql, [email]);
+  return rows[0];
 };
 
-// สร้าง User ใหม่
+// ค้นหา User ด้วย Citizen ID (เช็คซ้ำ)
+exports.findByCitizenId = async (citizenId) => {
+  const sql = 'SELECT id FROM dbuser WHERE citizen_id = ? LIMIT 1';
+  const [rows] = await pool.query(sql, [citizenId]);
+  return rows[0];
+};
+
+// สร้าง User ใหม่ (รับค่าก้อนใหญ่จากหน้า 3)
 exports.create = async (userData) => {
   const {
-    prefix, first_name, last_name, citizen_id, technician_type,
-    phone_number, birth_date, address_details, zip_code, sub_district, province,
-    email, password, role
+    citizen_id, full_name, birth_date, age,
+    address_id_card, sub_district, district, province, zip_code,
+    address_current, card_issue_date, card_expiry_date,
+    role, technician_type, experience_years,
+    email, password
   } = userData;
 
-  try {
-    const hash = bcrypt.hashSync(password, 12);
+  // Hash Password
+  const hash = bcrypt.hashSync(password, 12);
 
-    const sql = `
-      INSERT INTO dbuser (
-        prefix, first_name, last_name, citizen_id, technician_type,
-        phone_number, birth_date, address_details, zip_code, sub_district, province,
-        email, password, role
-      ) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+  const sql = `
+    INSERT INTO dbuser (
+      citizen_id, full_name, birth_date, age,
+      address_id_card, sub_district, district, province, zip_code,
+      address_current, card_issue_date, card_expiry_date,
+      role, technician_type, experience_years,
+      email, password
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
 
-    // กำหนดค่า default ให้ technician_type ถ้าไม่ได้ส่งมา
-    const finalTechType = technician_type || 'ไม่มี';
-    // กำหนดค่า default ให้ role ถ้าไม่ได้ส่งมา (เป็น worker)
-    const finalRole = role || 'worker';
+  // ใส่ค่า Default ให้ technician_type กับ experience_years ถ้าไม่ได้ส่งมา
+  const finalTechType = technician_type || 'ไม่มี';
+  const finalExpYears = experience_years || 0;
 
-    const [result] = await pool.query(sql, [
-      prefix, first_name, last_name, citizen_id, finalTechType,
-      phone_number, birth_date, address_details, zip_code, sub_district, province,
-      email, hash, finalRole
-    ]);
+  const [result] = await pool.query(sql, [
+    citizen_id, full_name, birth_date, age,
+    address_id_card, sub_district, district, province, zip_code,
+    address_current, card_issue_date, card_expiry_date,
+    role, finalTechType, finalExpYears,
+    email, hash
+  ]);
 
-    return {
-      id: result.insertId,
-      ...userData,
-      role: finalRole,
-      technician_type: finalTechType,
-      password: undefined // ไม่ส่งรหัสผ่านกลับไป
-    };
-  } catch (err) {
-    console.error('Error creating user:', err);
-    throw err;
-  }
+  return result.insertId;
 };
 
 exports.comparePassword = (password, hash) => {
