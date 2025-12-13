@@ -11,6 +11,9 @@ app.use(cors());
 const pool = require('./config/db');
 
 app.use('/api', require('./routes/auth'));
+
+app.use('/api/manageusers', require('./routes/manageusers'));
+
 app.use('/api/quiz', require('./routes/quiz'));
 
 function uuidHex() {

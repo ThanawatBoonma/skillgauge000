@@ -1,12 +1,11 @@
 const { validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const bcrypt = require('bcryptjs'); // เพิ่ม bcrypt เข้ามาเพื่อใช้เช็ค Password ตอน Login
+const bcrypt = require('bcryptjs'); 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-// --- Login (ใช้หน้าเดียวกันทุก Role) ---
 exports.loginUser = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -23,8 +22,6 @@ exports.loginUser = async (req, res) => {
     }
 
     // 2. ตรวจสอบรหัสผ่าน
-    // ใช้ User.comparePassword ถ้าใน Model มี หรือใช้ bcrypt ตรงๆ ก็ได้
-    // กรณีนี้เรียกใช้จาก Model ที่เราเขียนไว้
     const isMatch = User.comparePassword(password, user.password);
     
     if (!isMatch) {
@@ -40,7 +37,7 @@ exports.loginUser = async (req, res) => {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    // 4. ส่ง Response กลับ (นี่คือจุดที่ Postman รออยู่)
+    // 4. ส่ง Response กลับ 
     res.json({
       token,
       user: {
@@ -57,7 +54,7 @@ exports.loginUser = async (req, res) => {
   }
 };
 
-// --- Register (Admin เป็นคนกด Submit) ---
+// Register
 exports.registerUser = async (req, res) => {
   // Validation Check
   const errors = validationResult(req);
@@ -66,13 +63,13 @@ exports.registerUser = async (req, res) => {
   try {
     const { citizen_id, email } = req.body;
 
-    // 1. เช็ค Citizen ID ซ้ำ
+    // เช็ค Citizen ID ซ้ำ
     const existingCitizen = await User.findByCitizenId(citizen_id);
     if (existingCitizen) {
       return res.status(409).json({ error: 'Citizen ID already exists' });
     }
 
-    // 2. เช็ค Email ซ้ำ
+    // เช็ค Email ซ้ำ
     if (email) {
       const existingEmail = await User.findByEmail(email);
       if (existingEmail) {
@@ -80,10 +77,10 @@ exports.registerUser = async (req, res) => {
       }
     }
 
-    // 3. บันทึกลงฐานข้อมูล
+    // บันทึกลงฐานข้อมูล
     const userId = await User.create(req.body);
 
-    // 4. ส่ง Response กลับ (สำคัญมาก ห้ามลืม!)
+    // ส่ง Response กลับ 
     res.status(201).json({ 
       message: 'User created successfully', 
       userId,
@@ -94,11 +91,4 @@ exports.registerUser = async (req, res) => {
     console.error('Register Error:', err);
     res.status(500).json({ error: 'Server error' });
   }
-};
-
-// --- Update Role (ถ้ายังใช้อยู่) ---
-exports.updateUserRole = async (req, res) => {
-  // ... โค้ดเดิม ถ้ามี ...
-  // ถ้าไม่มี ให้ใส่ไว้แบบนี้ก็ได้เพื่อกัน Error
-  res.status(501).json({ message: "Not Implemented yet" });
 };
