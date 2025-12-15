@@ -21,7 +21,7 @@ router.post('/register',
   registerUser
 );
 
-// Route: POST /api/auth/login (สำหรับทุกคน)
+// Route: POST /api/auth/login
 router.post('/auth/login', loginUser);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './Dashboard.css';
-import './SkillAssessmentTest.css';
+import './WKDashboard.css';
+import './WKSkillAssessmentTest.css';
 import { mockUser } from '../mock/mockData';
 
 const SkillAssessmentTest = () => {

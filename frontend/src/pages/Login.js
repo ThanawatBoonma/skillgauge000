@@ -1,131 +1,187 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
-
-// ตั้งค่าฐาน API — แก้ URL ให้ตรงกับ backend ของคุณ
-const API = process.env.REACT_APP_API_URL || 'http://localhost:4000';
-
-// ฟังก์ชันช่วยเลือก role (กัน error ตอนที่ backend ส่ง roles มา)
-const chooseRole = (clientRole, serverRoles) => {
-  if (serverRoles.includes(clientRole)) return clientRole;
-  if (serverRoles.length > 0) return serverRoles[0];
-  return 'worker';
-};
+import { chooseRole } from '../utils/auth';
+import { API_BASE_URL } from '../utils/api';
 
 const Login = () => {
-  const [role, setRole] = useState('foreman');
+  const navigate = useNavigate();
+  // Start with no role selected; user can toggle selection on/off
+  const [role, setRole] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
+  const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
 
-  // ฟังก์ชัน onLogin 
+  const ADMIN_USERNAME = '0863125891';
+  const ADMIN_PASSWORD = '0863503381';
+  const ADMIN_EMAIL = 'admin@example.com';
+
+  useEffect(() => {
+    try {
+      const pre = sessionStorage.getItem('login_prefill_username');
+      if (pre) {
+        setUsername(pre);
+        sessionStorage.removeItem('login_prefill_username');
+      }
+      const msg = sessionStorage.getItem('login_message');
+      if (msg) {
+        setInfo(msg);
+        sessionStorage.removeItem('login_message');
+      }
+    } catch {}
+  }, []);
+
+  const toggleRole = (target) => {
+    setRole((prev) => (prev === target ? '' : target));
+  };
+
+  const API = API_BASE_URL || process.env.REACT_APP_API_URL || '';
+
   const onLogin = async () => {
-    console.log('onLogin clicked', { username, password, role });
+    setError(''); // Clear previous errors
+    
     if (!username || !password) {
-      alert('กรุณากรอก username และ password');
+      setError('กรุณากรอกเบอร์โทรศัพท์ (Admin) หรืออีเมล และรหัสผ่าน');
+      return;
+    }
+    
+    const trimmedUsername = username.trim();
+
+    if (trimmedUsername === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      setError('');
+      const token = 'admin-bypass-token';
+      const user = {
+        id: '11111111-1111-1111-1111-111111111111',
+        phone: ADMIN_USERNAME,
+        email: ADMIN_EMAIL,
+        roles: ['admin']
+      };
+      try {
+        sessionStorage.setItem('auth_token', token);
+        sessionStorage.setItem('user_id', user.id);
+        sessionStorage.setItem('user_email', user.email);
+        sessionStorage.setItem('role', 'admin');
+      } catch {}
+      const navUser = { username: user.phone, role: 'admin' };
+      navigate('/admin', { state: { user: navUser, source: 'login' } });
       return;
     }
 
-    const payload = { identifier: username, phone: username, username, password };
-    console.log('Login payload:', payload);
-
     try {
-      const res = await fetch(`${API}/api/auth/login`, {
+      const loginUrl = API ? `${API}/api/auth/login` : '/api/auth/login';
+      const res = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ identifier: trimmedUsername, password }),
       });
-
-      console.log('fetch status', res.status, res.statusText);
-
-      const text = await res.text();
-      console.log('raw response text:', text);
-
       if (!res.ok) {
-        let msg = text;
-        try { msg = JSON.parse(text); } catch (e) {}
-        console.error('Login failed response:', msg);
-        alert('Login failed: ' + (msg?.error || res.statusText || 'Unknown'));
+        setError('Username หรือ Password ไม่ถูกต้อง');
+        return;
+      }
+      const data = await res.json();
+      const { token, user } = data;
+      // Persist token and identity
+      try {
+        sessionStorage.setItem('auth_token', token);
+        if (user?.id) sessionStorage.setItem('user_id', user.id);
+        if (user?.email) sessionStorage.setItem('user_email', user.email);
+      } catch {}
+
+      // Pick role: prefer selected role if present in server roles; else first role; else worker
+      const serverRoles = Array.isArray(user?.roles) ? user.roles : [];
+
+      if (role === 'admin' && !serverRoles.includes('admin')) {
+        setError('บัญชีนี้ไม่ใช่ผู้ดูแลระบบ');
         return;
       }
 
-      let data;
-      try { data = JSON.parse(text); }
-      catch (e) { console.error('Invalid JSON response', e); alert('Invalid server response'); return; }
+      const chosenRole = chooseRole(role, serverRoles);
+      try { sessionStorage.setItem('role', chosenRole); } catch {}
 
-      console.log('login success data:', data);
-
-      try {
-        if (data.token) sessionStorage.setItem('auth_token', data.token);
-        if (data.user?.id) sessionStorage.setItem('user_id', data.user.id);
-        if (data.user?.email) sessionStorage.setItem('user_email', data.user.email);
-        console.log('sessionStorage set ok');
-      } catch (e) {
-        console.error('sessionStorage error', e);
+      // Check if worker profile is completed
+      const hasProfile = sessionStorage.getItem('worker_profile');
+      const navUser = { username: user?.phone || username, role: chosenRole };
+      
+      if (chosenRole === 'admin') {
+        navigate('/admin', { state: { user: navUser, source: 'login' } });
+      } else if (chosenRole === 'project_manager') {
+        navigate('/pm', { state: { user: navUser, source: 'login' } });
+      } else if (chosenRole === 'worker' && !hasProfile) {
+        navigate('/worker-profile', { state: { user: navUser, source: 'login' } });
+      } else {
+        navigate('/dashboard', { state: { user: navUser, source: 'login' } });
       }
-
-      let serverRoles = Array.isArray(data.user?.roles) ? data.user.roles : [];
-      let chosenRole = 'worker';
-      try {
-        chosenRole = chooseRole(role, serverRoles);
-      } catch (e) {
-        console.error('chooseRole error', e);
-        if (serverRoles.length) chosenRole = serverRoles[0];
-      }
-      console.log('chosenRole=', chosenRole);
-
-      try { sessionStorage.setItem('role', chosenRole); } catch (e) { console.error('set role storage error', e); }
-
-      const dest = chosenRole === 'project_manager' ? '/pm' : '/dashboard';
-      console.log('navigating to', dest);
-      navigate(dest, { state: { user: { username, role: chosenRole }, source: 'login' } });
     } catch (e) {
-      console.error('Login request error', e);
-      alert('Login failed: ' + e.message);
+      console.error(e);
+      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
     }
   };
 
-  // UI
   return (
     <div className="login-screen">
       <div className="login-page">
         <div>
-          <h1 className="login-header">Login</h1>
+          <h1 className="login-header"></h1>
 
           <div className="login-card">
+            {info && (
+              <div style={{
+                padding: '12px',
+                marginBottom: '16px',
+                backgroundColor: '#e6f4ea',
+                border: '1px solid #c7e8cf',
+                borderRadius: '8px',
+                color: '#137333',
+                fontSize: '14px',
+                textAlign: 'center'
+              }}>
+                {info}
+              </div>
+            )}
+            {error && (
+              <div style={{
+                padding: '12px',
+                marginBottom: '16px',
+                backgroundColor: 'rgba(255, 255, 255, 0)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '8px',
+                color: '#ef4444',
+                fontSize: '14px',
+                textAlign: 'center'
+              }}>
+                {error}
+              </div>
+            )}
             <div className="login-row">
-              <label className="login-label">Username</label>
-              <input
-                className="login-input"
-                placeholder="เบอร์โทรศัพท์"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+              <label className="login-label">Username / Email</label>
+              <input className="login-input" placeholder="เบอร์โทรศัพท์ (Admin) หรืออีเมล" value={username} onChange={e=>setUsername(e.target.value)} />
             </div>
             <div className="login-row">
               <label className="login-label">Password</label>
-              <input
-                className="login-input"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="input-with-eye">
+                <input className="login-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} />
+                  <button
+                    type="button"
+                    className={`eye-btn ${showPass ? 'is-show' : 'is-hide'}`}
+                    aria-label={showPass ? 'Hide password' : 'Show password'}
+                    onClick={()=>setShowPass(s=>!s)}
+                  >
+                    {/* Bootstrap eye SVG (inline), uses currentColor */}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
+                      <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                      <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+                    </svg>
+                  </button>
+              </div>
             </div>
             <div className="login-links">
               <Link to="#">Forgot password</Link>
-              <div className="role-toggle">
-                
-              </div>
             </div>
-
-            {/*  ปุ่ม login เรียก onLogin */}
-            <button className="login-submit" onClick={onLogin}>
-              Login
-            </button>
-
+            <button className="login-submit" type="button" onClick={onLogin}>Login</button>
             <div className="login-footer-link">
-              Don't have an account? <Link to="/signup">Sign Up</Link>
+              ต้องการบัญชีใหม่? กรุณาติดต่อผู้ดูแลระบบเพื่อสร้างบัญชีให้คุณ
             </div>
           </div>
         </div>

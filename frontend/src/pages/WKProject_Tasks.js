@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './Dashboard.css';
-import './Project_Tasks.css';
+import './WKDashboard.css';
+import './WKProject_Tasks.css';
 import { mockUser } from '../mock/mockData';
 
 const Project_Tasks = () => {

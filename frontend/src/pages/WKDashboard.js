@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
-import './Dashboard.css';
+import './WKDashboard.css';
 import { mockUser, mockProjects, mockSites, mockTasks } from '../mock/mockData';
 
 const Dashboard = () => {

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './Dashboard.css';
-import './SkillAssessmentQuiz.css';
+import './WKDashboard.css';
+import './WKSkillAssessmentQuiz.css';
 import { mockUser } from '../mock/mockData';
 
 const sampleQuestions = [

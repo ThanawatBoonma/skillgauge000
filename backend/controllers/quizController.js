@@ -27,7 +27,7 @@ exports.getExamPaper = async (req, res) => {
 };
 
 // ส่งคำตอบและประเมินผล
-exports.submitExam = async (req, res) => {
+exports.submitExam = async (req, res) => {iu30
     // รับข้อมูลรูปแบบ: { "answers": { "101": "A", "102": "B" } } 
     const { answers } = req.body; 
   
