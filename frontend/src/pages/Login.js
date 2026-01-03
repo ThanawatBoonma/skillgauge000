@@ -74,7 +74,7 @@ const Login = () => {
       const res = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: trimmedUsername, password }),
+        body: JSON.stringify({ email: trimmedUsername, password }),
       });
       if (!res.ok) {
         setError('Username หรือ Password ไม่ถูกต้อง');
@@ -90,7 +90,13 @@ const Login = () => {
       } catch {}
 
       // Pick role: prefer selected role if present in server roles; else first role; else worker
-      const serverRoles = Array.isArray(user?.roles) ? user.roles : [];
+      let serverRoles = [];
+      if (Array.isArray(user?.roles)) {
+        serverRoles = user.roles;
+      } else if (user?.role) {
+        
+        serverRoles = [user.role];
+      }
 
       if (role === 'admin' && !serverRoles.includes('admin')) {
         setError('บัญชีนี้ไม่ใช่ผู้ดูแลระบบ');

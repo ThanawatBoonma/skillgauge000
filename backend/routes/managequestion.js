@@ -1,0 +1,32 @@
+// routes/managequestion.js
+const express = require('express');
+const router = express.Router();
+
+// Import Controller
+const { 
+  getAllQuestions, 
+  addQuestions, 
+  updateQuestion, 
+  deleteQuestion 
+} = require('../controllers/managequestionController');
+
+// Import Middleware
+const { protect, adminOnly } = require('../middleware/authMiddleware');
+
+// บังคับว่าต้อง Login และเป็น Admin เท่านั้น ถึงจะจัดการข้อสอบได้
+router.use(protect);
+router.use(adminOnly);
+
+// GET /api/managequestion/all -> ดึงข้อสอบทั้งหมด
+router.get('/all', getAllQuestions);
+
+// POST /api/managequestion/add -> เพิ่มข้อสอบ (ส่งเป็น Array ได้)
+router.post('/add', addQuestions);
+
+// PUT /api/managequestion/update/:id -> แก้ไขข้อสอบรายข้อ
+router.put('/update/:id', updateQuestion);
+
+// DELETE /api/managequestion/delete/:id -> ลบข้อสอบรายข้อ
+router.delete('/delete/:id', deleteQuestion);
+
+module.exports = router;

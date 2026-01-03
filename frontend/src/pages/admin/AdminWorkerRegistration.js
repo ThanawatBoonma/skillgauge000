@@ -249,26 +249,36 @@ const AdminWorkerRegistration = () => {
 
   useEffect(() => {
     if (editingWorker) {
-      const { fullData } = editingWorker;
-      if (fullData) {
-        const fallbackEmail = editingWorker.email;
-        const credentialData = fullData.credentials || {};
-        setForm(prev => ({
-          personal: { ...prev.personal, ...(fullData.personal || {}) },
-          identity: { ...prev.identity, ...(fullData.identity || {}) },
-          address: { ...prev.address, ...(fullData.address || {}) },
-          employment: { ...prev.employment, ...(fullData.employment || {}) },
-          credentials: {
-            ...prev.credentials,
-            email:
-              credentialData.email ||
-              fallbackEmail ||
-              prev.credentials.email,
-            password: '',
-            confirmPassword: ''
-          }
-        }));
-      }
+      
+      setForm(prev => ({
+        personal: { 
+          ...prev.personal, 
+          fullName: editingWorker.full_name || '',
+          nationalId: editingWorker.citizen_id || '',
+          birthDate: editingWorker.birth_date ? editingWorker.birth_date.split('T')[0] : ''
+        },
+        identity: { ...prev.identity }, // ถ้า Backend มี issue_date, expiry_date ก็ map ตรงนี้
+        address: { 
+          ...prev.address,
+          addressOnId: editingWorker.address || '', 
+          province: editingWorker.province || '',
+          district: editingWorker.district || '',
+          subdistrict: editingWorker.subdistrict || '',
+          postalCode: editingWorker.postal_code || ''
+        },
+        employment: { 
+          ...prev.employment,
+          role: editingWorker.role || '',
+          tradeType: editingWorker.trade_type || '',
+          experienceYears: editingWorker.experience_years || ''
+        },
+        credentials: {
+          ...prev.credentials,
+          email: editingWorker.email || '',
+          password: '', // ไม่ดึงรหัสเก่ามาแสดง เพื่อความปลอดภัย
+          confirmPassword: ''
+        }
+      }));
     }
     if (viewOnlyFlag) {
       setIsViewOnly(true);
@@ -760,6 +770,7 @@ const AdminWorkerRegistration = () => {
     navigate('/admin');
   };
 
+  // ค้นหาฟังก์ชัน handleSubmit เดิม แล้วแก้เป็นแบบนี้ครับ
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFeedback('');
@@ -777,12 +788,14 @@ const AdminWorkerRegistration = () => {
 
     setErrors({});
 
+    // 1. ตรวจสอบเลขบัตรประชาชน
     if (!/^\d{13}$/.test(form.personal.nationalId || '')) {
       setFeedback('เลขบัตรประชาชนต้องมี 13 หลัก');
       setFeedbackType('error');
       return;
     }
 
+    // อัปเดต state อีเมลให้ตรงกับที่กรอกล่าสุด
     if (values.email !== form.credentials.email) {
       setForm(prev => ({
         ...prev,
@@ -793,39 +806,68 @@ const AdminWorkerRegistration = () => {
       }));
     }
 
+    // 2. แปลง Role จาก Frontend (pm, fm, worker) ให้เป็น Backend (projectmanager, foreman, worker)
+    const roleMap = {
+      'pm': 'projectmanager',
+      'fm': 'foreman',
+      'worker': 'worker'
+    };
+    const backendRole = roleMap[form.employment.role] || 'worker';
+
+    // 3. เตรียม Payload ให้ตรงกับที่ Backend (Thanawat) ต้องการ (Flat Structure)
+    // หมายเหตุ: Backend ต้องการ citizen_id, full_name, email, password, role เป็นหลัก
     const payload = {
-      personal: {
-        ...form.personal,
-        age
-      },
-      identity: { ...form.identity },
-      address: { ...form.address },
-      employment: { ...form.employment },
-      credentials: {
-        email: values.email
-      }
+      citizen_id: form.personal.nationalId,
+      full_name: form.personal.fullName,
+      email: values.email,
+      password: values.password,
+      role: backendRole,
+      // ส่งข้อมูลเสริมไปด้วยเผื่อ Backend มีการขยาย Model รองรับในอนาคต
+      birth_date: form.personal.birthDate,
+      address: form.address.currentAddress || form.address.addressOnId,
+      province: form.address.province,
+      district: form.address.district,
+      subdistrict: form.address.subdistrict,
+      postal_code: form.address.postalCode,
+      trade_type: form.employment.tradeType,
+      experience_years: form.employment.experienceYears
     };
 
-    if (values.password) {
-      payload.credentials.password = values.password;
-    }
-
-    const endpoint = isEditing ? `/api/admin/workers/${editingWorkerId}` : '/api/admin/workers';
+    // 4. กำหนด Endpoint
+    // กรณีสร้างใหม่ ใช้ /api/register (ของ Backend Thanawat)
+    // กรณีแก้ไข ใช้ /api/manageusers/... (ถ้ามี)
+    const endpoint = isEditing 
+      ? `/api/manageusers/${editingWorkerId}` 
+      : '/api/register'; 
+      
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
       setSubmitting(true);
+      
+      // เรียก API
       await apiRequest(endpoint, { method, body: payload });
-      setFeedback(isEditing ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกข้อมูลสำเร็จ!');
+      
+      setFeedback(isEditing ? 'อัปเดตข้อมูลสำเร็จ!' : 'ลงทะเบียนพนักงานสำเร็จ!');
       setFeedbackType('success');
       setSubmitting(false);
+      
+      // รอสักครู่แล้วกลับหน้า Dashboard
       setTimeout(() => {
         navigate('/admin', { state: { initialTab: 'users', refreshWorkers: true } });
-      }, 900);
+      }, 1500);
+      
     } catch (error) {
-      const messageKey = error?.data?.message;
-      const friendlyMessage = messageKey && serverErrorMessages[messageKey];
-      setFeedback(friendlyMessage || error.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      console.error('Registration Error:', error);
+      // แปลง Error message จาก Backend ให้เป็นภาษาไทยที่เข้าใจง่าย
+      const msg = error?.data?.message || error?.data?.error || error.message;
+      let friendlyMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+      
+      if (msg?.includes('Citizen ID')) friendlyMessage = 'เลขบัตรประชาชนนี้มีในระบบแล้ว';
+      else if (msg?.includes('Email')) friendlyMessage = 'อีเมลนี้มีผู้ใช้งานแล้ว';
+      else if (msg) friendlyMessage = `บันทึกไม่สำเร็จ: ${msg}`;
+
+      setFeedback(friendlyMessage);
       setFeedbackType('error');
       setSubmitting(false);
     }

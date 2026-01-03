@@ -4,6 +4,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const crypto = require('crypto');
+const locationRoutes = require('./routes/location');
 
 app.use(express.json());
 app.use(cors());
@@ -15,6 +16,10 @@ app.use('/api', require('./routes/auth'));
 app.use('/api/manageusers', require('./routes/manageusers'));
 
 app.use('/api/quiz', require('./routes/quiz'));
+
+app.use('/api/location', locationRoutes);
+
+app.use('/api/managequestion', require('./routes/managequestion'));
 
 function uuidHex() {
   return crypto.randomBytes(16).toString('hex');
