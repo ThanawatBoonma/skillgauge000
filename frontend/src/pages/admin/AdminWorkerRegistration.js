@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './AdminWorkerRegistration.css';
+import ThaiDatePicker from '../../components/ThaiDatePicker';
 import { apiRequest } from '../../utils/api';
 
 const provinceOptions = [];
@@ -26,6 +27,8 @@ const UPPERCASE_SET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const LOWERCASE_SET = 'abcdefghijkmnopqrstuvwxyz';
 const DIGIT_SET = '23456789';
 const SYMBOL_SET = '!@#$%^&*';
+const MIN_PHONE_LENGTH = 10;
+const MAX_PHONE_LENGTH = 10;
 
 const buildRandomPassword = (length = RANDOM_PASSWORD_LENGTH) => {
   const pickFrom = source => source[Math.floor(Math.random() * source.length)];
@@ -78,6 +81,7 @@ const STEP_FIELD_PATHS = {
     ['personal', 'birthDate'],
     ['employment', 'role'],
     ['employment', 'tradeType'],
+    ['address', 'phone'],
     ['address', 'addressOnId'],
     ['address', 'province'],
     ['address', 'district'],
@@ -89,8 +93,7 @@ const STEP_FIELD_PATHS = {
   ],
   credentials: [
     ['credentials', 'email'],
-    ['credentials', 'password'],
-    ['credentials', 'confirmPassword']
+    ['credentials', 'password']
   ],
   review: []
 };
@@ -102,6 +105,7 @@ const IMPORTANT_FIELD_PATHS = {
     ['personal', 'birthDate'],
     ['employment', 'role'],
     ['employment', 'tradeType'],
+    ['address', 'phone'],
     ['address', 'addressOnId'],
     ['address', 'currentAddress'],
     ['identity', 'issueDate'],
@@ -123,6 +127,7 @@ const REQUIRED_FIELD_MESSAGES = {
   'address.district': 'กรุณาระบุอำเภอ',
   'address.subdistrict': 'กรุณาระบุตำบล',
   'address.postalCode': 'กรุณาระบุรหัสไปรษณีย์',
+  'address.phone': 'กรุณากรอกเบอร์โทรศัพท์',
   'address.addressOnId': 'กรุณากรอกที่อยู่ตามบัตรประชาชน',
   'address.currentAddress': 'กรุณากรอกที่อยู่ปัจจุบัน',
   'identity.issueDate': 'กรุณาระบุวันออกบัตร',
@@ -134,6 +139,7 @@ const serverErrorMessages = {
   duplicate_national_id: 'เลขบัตรประชาชนนี้ถูกใช้งานแล้ว',
   invalid_email: 'รูปแบบอีเมลไม่ถูกต้อง',
   password_required: 'กรุณากำหนดรหัสผ่านให้ครบถ้วน',
+  invalid_phone: 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง',
   invalid_national_id_length: 'เลขบัตรประชาชนต้องมี 13 หลัก',
   workers_table_missing_id: 'ตาราง workers ไม่มีคอลัมน์ id กรุณาตรวจสอบฐานข้อมูล',
   worker_accounts_table_missing_columns: 'ตารางบัญชีผู้ใช้ยังไม่พร้อมใช้งาน'
@@ -175,6 +181,15 @@ const formatDate = (value) => {
   }
 };
 
+const formatThaiDateForInput = (isoDate) => {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  const [y, m, d] = parts;
+  const thYear = parseInt(y, 10) + 543;
+  return `${d}/${m}/${thYear}`;
+};
+
 const buildInitialFormState = () => ({
   personal: {
     nationalId: '',
@@ -186,6 +201,7 @@ const buildInitialFormState = () => ({
     expiryDate: ''
   },
   address: {
+    phone: '',
     addressOnId: '',
     province: '',
     district: '',
@@ -200,8 +216,7 @@ const buildInitialFormState = () => ({
   },
   credentials: {
     email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   }
 });
 
@@ -226,59 +241,63 @@ const AdminWorkerRegistration = () => {
   const addressLookupAbortRef = useRef(null);
   const addressBlurTimeoutRef = useRef(null);
 
+  // Date picker refs
+  const birthDateRef = useRef(null);
+  const issueDateRef = useRef(null);
+  const expiryDateRef = useRef(null);
+
+  const openDatePicker = (ref) => {
+    if (ref.current) {
+      if (typeof ref.current.showPicker === 'function') {
+        ref.current.showPicker();
+      } else {
+        ref.current.focus();
+      }
+    }
+  };
+
   const handleGeneratePassword = () => {
     const generated = buildRandomPassword();
     setForm(prev => ({
       ...prev,
       credentials: {
         ...prev.credentials,
-        password: generated,
-        confirmPassword: generated
+        password: generated
       }
     }));
     setErrors(prev => {
-      if (!prev.password && !prev.confirmPassword) {
+      if (!prev.password) {
         return prev;
       }
       const next = { ...prev };
       delete next.password;
-      delete next.confirmPassword;
       return next;
     });
   };
 
   useEffect(() => {
     if (editingWorker) {
-      
-      setForm(prev => ({
-        personal: { 
-          ...prev.personal, 
-          fullName: editingWorker.full_name || '',
-          nationalId: editingWorker.citizen_id || '',
-          birthDate: editingWorker.birth_date ? editingWorker.birth_date.split('T')[0] : ''
-        },
-        identity: { ...prev.identity }, // ถ้า Backend มี issue_date, expiry_date ก็ map ตรงนี้
-        address: { 
-          ...prev.address,
-          addressOnId: editingWorker.address || '', 
-          province: editingWorker.province || '',
-          district: editingWorker.district || '',
-          subdistrict: editingWorker.subdistrict || '',
-          postalCode: editingWorker.postal_code || ''
-        },
-        employment: { 
-          ...prev.employment,
-          role: editingWorker.role || '',
-          tradeType: editingWorker.trade_type || '',
-          experienceYears: editingWorker.experience_years || ''
-        },
-        credentials: {
-          ...prev.credentials,
-          email: editingWorker.email || '',
-          password: '', // ไม่ดึงรหัสเก่ามาแสดง เพื่อความปลอดภัย
-          confirmPassword: ''
-        }
-      }));
+      const { fullData } = editingWorker;
+      if (fullData) {
+        const fallbackEmail = editingWorker.email;
+        const credentialData = fullData.credentials || {};
+        const existingPassword = credentialData.passwordHash || credentialData.password || '';
+
+        setForm(prev => ({
+          personal: { ...prev.personal, ...(fullData.personal || {}) },
+          identity: { ...prev.identity, ...(fullData.identity || {}) },
+          address: { ...prev.address, ...(fullData.address || {}) },
+          employment: { ...prev.employment, ...(fullData.employment || {}) },
+          credentials: {
+            ...prev.credentials,
+            email:
+              credentialData.email ||
+              fallbackEmail ||
+              prev.credentials.email,
+            password: existingPassword
+          }
+        }));
+      }
     }
     if (viewOnlyFlag) {
       setIsViewOnly(true);
@@ -356,6 +375,7 @@ const AdminWorkerRegistration = () => {
         title: 'ข้อมูลที่อยู่',
         stepIndex: STEP_INDEX_BY_KEY.personal,
         items: [
+          { label: 'เบอร์โทรศัพท์', value: form.address.phone?.trim() || 'ไม่ระบุ' },
           { label: 'ที่อยู่ตามบัตรประชาชน', value: form.address.addressOnId?.trim() || 'ไม่ระบุ' },
           { label: 'จังหวัด', value: form.address.province?.trim() || 'ไม่ระบุ' },
           { label: 'อำเภอ', value: form.address.district?.trim() || 'ไม่ระบุ' },
@@ -606,7 +626,6 @@ const AdminWorkerRegistration = () => {
   const validateCredentials = () => {
     const emailValue = form.credentials.email.trim();
     const passwordValue = form.credentials.password;
-    const confirmValue = form.credentials.confirmPassword;
     const validationErrors = {};
 
     if (!emailValue) {
@@ -615,7 +634,7 @@ const AdminWorkerRegistration = () => {
       validationErrors.email = 'รูปแบบอีเมลไม่ถูกต้อง';
     }
 
-    const requirePassword = !isEditing || Boolean(passwordValue || confirmValue);
+    const requirePassword = !isEditing || Boolean(passwordValue);
 
     if (requirePassword) {
       if (!passwordValue) {
@@ -623,20 +642,13 @@ const AdminWorkerRegistration = () => {
       } else if (passwordValue.length < 8) {
         validationErrors.password = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
       }
-
-      if (!confirmValue) {
-        validationErrors.confirmPassword = 'กรุณายืนยันรหัสผ่าน';
-      } else if (passwordValue !== confirmValue) {
-        validationErrors.confirmPassword = 'รหัสผ่านไม่ตรงกัน';
-      }
     }
 
     return {
       errors: validationErrors,
       values: {
         email: emailValue,
-        password: requirePassword ? passwordValue : undefined,
-        confirmPassword: requirePassword ? confirmValue : undefined
+        password: requirePassword ? passwordValue : undefined
       },
       requirePassword
     };
@@ -674,6 +686,24 @@ const AdminWorkerRegistration = () => {
     if (section === 'address') {
       if (key === 'postalCode') {
         value = value.replace(/\D/g, '').slice(0, 5);
+      }
+
+      if (key === 'phone') {
+        value = value.replace(/\D/g, '').slice(0, MAX_PHONE_LENGTH);
+        updateField(section, key, value);
+        const phoneErrorKey = getErrorKey('address', 'phone');
+        setErrors(prev => {
+          const next = { ...prev };
+          if (value.length === 0) {
+            next[phoneErrorKey] = REQUIRED_FIELD_MESSAGES[phoneErrorKey];
+          } else if (value.length < MIN_PHONE_LENGTH) {
+            next[phoneErrorKey] = `เบอร์โทรศัพท์ต้องมี ${MIN_PHONE_LENGTH} หลัก`;
+          } else if (next[phoneErrorKey]) {
+            delete next[phoneErrorKey];
+          }
+          return next;
+        });
+        return;
       }
 
       if (key === 'province') {
@@ -770,7 +800,6 @@ const AdminWorkerRegistration = () => {
     navigate('/admin');
   };
 
-  // ค้นหาฟังก์ชัน handleSubmit เดิม แล้วแก้เป็นแบบนี้ครับ
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFeedback('');
@@ -788,14 +817,12 @@ const AdminWorkerRegistration = () => {
 
     setErrors({});
 
-    // 1. ตรวจสอบเลขบัตรประชาชน
     if (!/^\d{13}$/.test(form.personal.nationalId || '')) {
       setFeedback('เลขบัตรประชาชนต้องมี 13 หลัก');
       setFeedbackType('error');
       return;
     }
 
-    // อัปเดต state อีเมลให้ตรงกับที่กรอกล่าสุด
     if (values.email !== form.credentials.email) {
       setForm(prev => ({
         ...prev,
@@ -806,68 +833,39 @@ const AdminWorkerRegistration = () => {
       }));
     }
 
-    // 2. แปลง Role จาก Frontend (pm, fm, worker) ให้เป็น Backend (projectmanager, foreman, worker)
-    const roleMap = {
-      'pm': 'projectmanager',
-      'fm': 'foreman',
-      'worker': 'worker'
-    };
-    const backendRole = roleMap[form.employment.role] || 'worker';
-
-    // 3. เตรียม Payload ให้ตรงกับที่ Backend (Thanawat) ต้องการ (Flat Structure)
-    // หมายเหตุ: Backend ต้องการ citizen_id, full_name, email, password, role เป็นหลัก
     const payload = {
-      citizen_id: form.personal.nationalId,
-      full_name: form.personal.fullName,
-      email: values.email,
-      password: values.password,
-      role: backendRole,
-      // ส่งข้อมูลเสริมไปด้วยเผื่อ Backend มีการขยาย Model รองรับในอนาคต
-      birth_date: form.personal.birthDate,
-      address: form.address.currentAddress || form.address.addressOnId,
-      province: form.address.province,
-      district: form.address.district,
-      subdistrict: form.address.subdistrict,
-      postal_code: form.address.postalCode,
-      trade_type: form.employment.tradeType,
-      experience_years: form.employment.experienceYears
+      personal: {
+        ...form.personal,
+        age
+      },
+      identity: { ...form.identity },
+      address: { ...form.address },
+      employment: { ...form.employment },
+      credentials: {
+        email: values.email
+      }
     };
 
-    // 4. กำหนด Endpoint
-    // กรณีสร้างใหม่ ใช้ /api/register (ของ Backend Thanawat)
-    // กรณีแก้ไข ใช้ /api/manageusers/... (ถ้ามี)
-    const endpoint = isEditing 
-      ? `/api/manageusers/${editingWorkerId}` 
-      : '/api/register'; 
-      
+    if (values.password) {
+      payload.credentials.password = values.password;
+    }
+
+    const endpoint = isEditing ? `/api/admin/workers/${editingWorkerId}` : '/api/admin/workers';
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
       setSubmitting(true);
-      
-      // เรียก API
       await apiRequest(endpoint, { method, body: payload });
-      
-      setFeedback(isEditing ? 'อัปเดตข้อมูลสำเร็จ!' : 'ลงทะเบียนพนักงานสำเร็จ!');
+      setFeedback(isEditing ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกข้อมูลสำเร็จ!');
       setFeedbackType('success');
       setSubmitting(false);
-      
-      // รอสักครู่แล้วกลับหน้า Dashboard
       setTimeout(() => {
         navigate('/admin', { state: { initialTab: 'users', refreshWorkers: true } });
-      }, 1500);
-      
+      }, 900);
     } catch (error) {
-      console.error('Registration Error:', error);
-      // แปลง Error message จาก Backend ให้เป็นภาษาไทยที่เข้าใจง่าย
-      const msg = error?.data?.message || error?.data?.error || error.message;
-      let friendlyMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
-      
-      if (msg?.includes('Citizen ID')) friendlyMessage = 'เลขบัตรประชาชนนี้มีในระบบแล้ว';
-      else if (msg?.includes('Email')) friendlyMessage = 'อีเมลนี้มีผู้ใช้งานแล้ว';
-      else if (msg) friendlyMessage = `บันทึกไม่สำเร็จ: ${msg}`;
-
-      setFeedback(friendlyMessage);
+      const messageKey = error?.data?.message;
+      const friendlyMessage = messageKey && serverErrorMessages[messageKey];
+      setFeedback(friendlyMessage || error.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       setFeedbackType('error');
       setSubmitting(false);
     }
@@ -895,7 +893,7 @@ const AdminWorkerRegistration = () => {
         }
         setErrors(prev => {
           const next = { ...prev };
-          ['email', 'password', 'confirmPassword'].forEach(key => {
+          ['email', 'password'].forEach(key => {
             if (!credentialErrors[key] && next[key]) {
               delete next[key];
             }
@@ -927,6 +925,18 @@ const AdminWorkerRegistration = () => {
           const nationalIdKey = getErrorKey('personal', 'nationalId');
           collectedErrors[nationalIdKey] = 'เลขบัตรประชาชนต้องมี 13 หลัก';
           setFeedback('กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก');
+          setFeedbackType('error');
+          result.valid = false;
+          if (result.focusIndex === undefined) {
+            result.focusIndex = index;
+          }
+        }
+
+        const phoneValue = (form.address.phone || '').trim();
+        if (phoneValue.length > 0 && phoneValue.length < MIN_PHONE_LENGTH) {
+          const phoneKey = getErrorKey('address', 'phone');
+          collectedErrors[phoneKey] = `เบอร์โทรศัพท์ต้องมี ${MIN_PHONE_LENGTH} หลัก`;
+          setFeedback('กรุณากรอกเบอร์โทรศัพท์ให้ครบถ้วน');
           setFeedbackType('error');
           result.valid = false;
           if (result.focusIndex === undefined) {
@@ -1090,10 +1100,9 @@ const AdminWorkerRegistration = () => {
                 </div>
                 <div className="field">
                   <label>วันเกิด*</label>
-                  <input
-                    type="date"
+                  <ThaiDatePicker
                     value={form.personal.birthDate}
-                    onChange={handleInputChange('personal', 'birthDate')}
+                    onChange={(isoDate) => updateField('personal', 'birthDate', isoDate)}
                     className={errors[getErrorKey('personal', 'birthDate')] ? 'error' : ''}
                   />
                   {errors[getErrorKey('personal', 'birthDate')] && (
@@ -1164,6 +1173,21 @@ const AdminWorkerRegistration = () => {
             <section className="field-section">
               <h3 className="field-section-title">ข้อมูลที่อยู่</h3>
               <div className="field-grid one-column">
+                <div className="field">
+                  <label>เบอร์โทรศัพท์*</label>
+                  <input
+                    type="text"
+                    inputMode="tel"
+                    maxLength={10}
+                    value={form.address.phone}
+                    onChange={handleInputChange('address', 'phone')}
+                    placeholder="0xx-xxx-xxxx"
+                    className={errors[getErrorKey('address', 'phone')] ? 'error' : ''}
+                  />
+                  {errors[getErrorKey('address', 'phone')] && (
+                    <span className="error-message">{errors[getErrorKey('address', 'phone')]}</span>
+                  )}
+                </div>
                 <div className="field">
                   <label>ที่อยู่ตามบัตรประชาชน*</label>
                   <textarea
@@ -1365,10 +1389,9 @@ const AdminWorkerRegistration = () => {
               <div className="field-grid two-columns">
                 <div className="field">
                   <label>วันออกบัตร*</label>
-                  <input
-                    type="date"
+                  <ThaiDatePicker
                     value={form.identity.issueDate}
-                    onChange={handleInputChange('identity', 'issueDate')}
+                    onChange={(isoDate) => updateField('identity', 'issueDate', isoDate)}
                     className={errors[getErrorKey('identity', 'issueDate')] ? 'error' : ''}
                   />
                   {errors[getErrorKey('identity', 'issueDate')] && (
@@ -1377,10 +1400,9 @@ const AdminWorkerRegistration = () => {
                 </div>
                 <div className="field">
                   <label>วันหมดอายุบัตร*</label>
-                  <input
-                    type="date"
+                  <ThaiDatePicker
                     value={form.identity.expiryDate}
-                    onChange={handleInputChange('identity', 'expiryDate')}
+                    onChange={(isoDate) => updateField('identity', 'expiryDate', isoDate)}
                     className={errors[getErrorKey('identity', 'expiryDate')] ? 'error' : ''}
                   />
                   {errors[getErrorKey('identity', 'expiryDate')] && (
@@ -1439,19 +1461,6 @@ const AdminWorkerRegistration = () => {
                   {errors.password && <span className="error-message">{errors.password}</span>}
                   <span className="help-text">รหัสผ่านอย่างน้อย 8 ตัวอักษร แนะนำให้ผสมตัวเลขและอักขระพิเศษ</span>
                 </div>
-                <div className="field">
-                  <label>ยืนยันรหัสผ่าน</label>
-                  <div className="password-input">
-                    <input
-                      type="text"
-                      value={form.credentials.confirmPassword}
-                      onChange={handleInputChange('credentials', 'confirmPassword')}
-                      placeholder="********"
-                      className={errors.confirmPassword ? 'error' : ''}
-                    />
-                  </div>
-                  {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
-                </div>
               </div>
             </div>
           </div>
@@ -1465,30 +1474,38 @@ const AdminWorkerRegistration = () => {
             </section>
 
             <div className="review-grid">
-              {reviewSections.map(section => (
-                <div key={section.key} className="review-card">
-                  <div className="review-card-header">
-                    <h4 className="review-card-title">{section.title}</h4>
-                    {!isViewOnly && (
-                      <button
-                        type="button"
-                        className="review-card-edit"
-                        onClick={() => handleStepSelect(section.stepIndex)}
-                      >
-                        แก้ไข
-                      </button>
-                    )}
+              <div className="review-unified-card">
+                <div className="review-unified-header">
+                  <div className="review-unified-heading">
+                    <h4>ข้อมูลการสมัครทั้งหมด</h4>
+                    <p>ทบทวนรายละเอียดก่อนยืนยัน ระบบสามารถย้อนกลับไปแก้ไขได้ทุกขั้นตอน</p>
                   </div>
-                  <dl className="review-list">
-                    {section.items.map(item => (
-                      <div key={`${section.key}-${item.label}`} className="review-list-row">
-                        <dt>{item.label}</dt>
-                        <dd>{item.value || 'ไม่ระบุ'}</dd>
-                      </div>
-                    ))}
-                  </dl>
+                  {!isViewOnly && (
+                    <button
+                      type="button"
+                      className="review-unified-edit"
+                      onClick={() => handleStepSelect(0)}
+                    >
+                      แก้ไข
+                    </button>
+                  )}
                 </div>
-              ))}
+                <div className="review-unified-sections">
+                  {reviewSections.map(section => (
+                    <div key={section.key} className="review-section">
+                      <h5 className="review-section-title">{section.title}</h5>
+                      <dl className="review-list">
+                        {section.items.map(item => (
+                          <div key={`${section.key}-${item.label}`} className="review-list-row">
+                            <dt>{item.label}</dt>
+                            <dd>{item.value || 'ไม่ระบุ'}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         );

@@ -21,6 +21,8 @@ app.use('/api/location', locationRoutes);
 
 app.use('/api/managequestion', require('./routes/managequestion'));
 
+app.use('/api/skillAssessment', require('./routes/skillAssessmentTest'));
+
 function uuidHex() {
   return crypto.randomBytes(16).toString('hex');
 }

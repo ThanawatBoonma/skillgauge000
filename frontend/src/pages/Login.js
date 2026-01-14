@@ -1,13 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
-import { chooseRole } from '../utils/auth';
 import { API_BASE_URL } from '../utils/api';
 
 const Login = () => {
   const navigate = useNavigate();
-  // Start with no role selected; user can toggle selection on/off
-  const [role, setRole] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -33,14 +30,10 @@ const Login = () => {
     } catch {}
   }, []);
 
-  const toggleRole = (target) => {
-    setRole((prev) => (prev === target ? '' : target));
-  };
-
   const API = API_BASE_URL || process.env.REACT_APP_API_URL || '';
 
   const onLogin = async () => {
-    setError(''); // Clear previous errors
+    setError(''); 
     
     if (!username || !password) {
       setError('กรุณากรอกเบอร์โทรศัพท์ (Admin) หรืออีเมล และรหัสผ่าน');
@@ -49,6 +42,7 @@ const Login = () => {
     
     const trimmedUsername = username.trim();
 
+    // Bypass สำหรับ Admin (Hardcoded)
     if (trimmedUsername === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       setError('');
       const token = 'admin-bypass-token';
@@ -76,49 +70,55 @@ const Login = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmedUsername, password }),
       });
+
       if (!res.ok) {
         setError('Username หรือ Password ไม่ถูกต้อง');
         return;
       }
+
       const data = await res.json();
-      const { token, user } = data;
-      // Persist token and identity
+      const { token, user: serverUser } = data; // เปลี่ยนชื่อตัวแปรเป็น serverUser เพื่อไม่ให้ซ้ำ
+
+      // 1. ตรวจสอบ Role จากฐานข้อมูล
+      let chosenRole = 'worker'; 
+      if (Array.isArray(serverUser?.roles) && serverUser.roles.length > 0) {
+        chosenRole = serverUser.roles[0];
+      } else if (serverUser?.role) {
+        chosenRole = serverUser.role;
+      }
+
+      // 2. ปรับการเซฟข้อมูลเข้า sessionStorage ให้เป็นแบบ Object
       try {
         sessionStorage.setItem('auth_token', token);
-        if (user?.id) sessionStorage.setItem('user_id', user.id);
-        if (user?.email) sessionStorage.setItem('user_email', user.email);
-      } catch {}
+        sessionStorage.setItem('role', chosenRole); // เก็บแยกไว้ใช้เช็ค Route
 
-      // Pick role: prefer selected role if present in server roles; else first role; else worker
-      let serverRoles = [];
-      if (Array.isArray(user?.roles)) {
-        serverRoles = user.roles;
-      } else if (user?.role) {
-        
-        serverRoles = [user.role];
+        // สร้าง Object เพื่อเซฟให้ WorkerDashboard ไป JSON.parse ต่อได้
+        const userToStore = {
+          id: serverUser?.id || '',
+          name: serverUser?.username || serverUser?.email || 'ผู้ใช้งาน', // ชื่อที่จะไปแสดงบน Dashboard
+          role: chosenRole
+        };
+        sessionStorage.setItem('user', JSON.stringify(userToStore)); // เซฟเป็น JSON string
+
+      } catch (e) {
+        console.error("Session storage error:", e);
       }
 
-      if (role === 'admin' && !serverRoles.includes('admin')) {
-        setError('บัญชีนี้ไม่ใช่ผู้ดูแลระบบ');
-        return;
-      }
+      // 3. การ Navigate ไปยังหน้าต่างๆ (ตรวจสอบ Path ให้ตรงกับ App.js)
+      const navUser = { username: serverUser?.phone || username, role: chosenRole };
 
-      const chosenRole = chooseRole(role, serverRoles);
-      try { sessionStorage.setItem('role', chosenRole); } catch {}
-
-      // Check if worker profile is completed
-      const hasProfile = sessionStorage.getItem('worker_profile');
-      const navUser = { username: user?.phone || username, role: chosenRole };
-      
       if (chosenRole === 'admin') {
         navigate('/admin', { state: { user: navUser, source: 'login' } });
       } else if (chosenRole === 'project_manager') {
         navigate('/pm', { state: { user: navUser, source: 'login' } });
-      } else if (chosenRole === 'worker' && !hasProfile) {
-        navigate('/worker-profile', { state: { user: navUser, source: 'login' } });
+      } else if (chosenRole === 'foreman') {
+        navigate('/foreman', { state: { user: navUser, source: 'login' } }); // Path ต้องตรงกับ App.js
+      } else if (chosenRole === 'worker') {
+        navigate('/worker', { state: { user: navUser, source: 'login' } }); // Path ต้องตรงกับ App.js
       } else {
         navigate('/dashboard', { state: { user: navUser, source: 'login' } });
       }
+
     } catch (e) {
       console.error(e);
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
@@ -130,56 +130,54 @@ const Login = () => {
       <div className="login-page">
         <div>
           <h1 className="login-header"></h1>
-
           <div className="login-card">
             {info && (
               <div style={{
-                padding: '12px',
-                marginBottom: '16px',
-                backgroundColor: '#e6f4ea',
-                border: '1px solid #c7e8cf',
-                borderRadius: '8px',
-                color: '#137333',
-                fontSize: '14px',
-                textAlign: 'center'
+                padding: '12px', marginBottom: '16px', backgroundColor: '#e6f4ea',
+                border: '1px solid #c7e8cf', borderRadius: '8px', color: '#137333',
+                fontSize: '14px', textAlign: 'center'
               }}>
                 {info}
               </div>
             )}
             {error && (
               <div style={{
-                padding: '12px',
-                marginBottom: '16px',
-                backgroundColor: 'rgba(255, 255, 255, 0)',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '8px',
-                color: '#ef4444',
-                fontSize: '14px',
-                textAlign: 'center'
+                padding: '12px', marginBottom: '16px', backgroundColor: 'rgba(255, 255, 255, 0)',
+                border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '8px',
+                color: '#ef4444', fontSize: '14px', textAlign: 'center'
               }}>
                 {error}
               </div>
             )}
             <div className="login-row">
               <label className="login-label">Username / Email</label>
-              <input className="login-input" placeholder="เบอร์โทรศัพท์ (Admin) หรืออีเมล" value={username} onChange={e=>setUsername(e.target.value)} />
+              <input 
+                className="login-input" 
+                placeholder="เบอร์โทรศัพท์ (Admin) หรืออีเมล" 
+                value={username} 
+                onChange={e => setUsername(e.target.value)} 
+              />
             </div>
             <div className="login-row">
               <label className="login-label">Password</label>
               <div className="input-with-eye">
-                <input className="login-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} />
-                  <button
-                    type="button"
-                    className={`eye-btn ${showPass ? 'is-show' : 'is-hide'}`}
-                    aria-label={showPass ? 'Hide password' : 'Show password'}
-                    onClick={()=>setShowPass(s=>!s)}
-                  >
-                    {/* Bootstrap eye SVG (inline), uses currentColor */}
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
-                      <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
-                      <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
-                    </svg>
-                  </button>
+                <input 
+                  className="login-input" 
+                  type={showPass ? 'text' : 'password'} 
+                  placeholder="••••••••" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                />
+                <button
+                  type="button"
+                  className={`eye-btn ${showPass ? 'is-show' : 'is-hide'}`}
+                  onClick={() => setShowPass(s => !s)}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-eye-fill" viewBox="0 0 16 16">
+                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                    <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+                  </svg>
+                </button>
               </div>
             </div>
             <div className="login-links">
