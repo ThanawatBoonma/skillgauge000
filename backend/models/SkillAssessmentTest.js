@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-// ฟังก์ชันสุ่มข้อสอบตามระดับความยาก
+// ฟังก์ชันสุ่มข้อสอบ
 exports.getRandomQuestionsByLevel = async (level, limit) => {
     const sql = `
         SELECT id, question_text, choice_a, choice_b, choice_c, choice_d, difficulty_level, skill_type 
@@ -13,7 +13,7 @@ exports.getRandomQuestionsByLevel = async (level, limit) => {
     return rows;
 };
 
-// ฟังก์ชันดึงเฉลย (สำหรับตรวจคำตอบ ถ้าจำเป็นต้องแยก)
+// ฟังก์ชันดึงเฉลย 
 exports.getCorrectAnswers = async (questionIds) => {
     if (questionIds.length === 0) return [];
     
@@ -24,12 +24,12 @@ exports.getCorrectAnswers = async (questionIds) => {
     return rows;
 };
 
-// บันทึกผลสอบ (ถ้ามี)
-exports.saveAssessmentResult = async (userId, score, total, percent) => {
+exports.saveAssessmentResult = async (userId, theoryScore) => {
+    
     const sql = `
-        INSERT INTO skill_assessment_results (user_id, score, total_questions, score_percent, created_at)
-        VALUES (?, ?, ?, ?, NOW())
+        INSERT INTO skill_assessment_results (user_id, theory_score, created_at)
+        VALUES (?, ?, NOW())
     `;
-    const [result] = await pool.query(sql, [userId, score, total, percent]);
+    const [result] = await pool.query(sql, [userId, theoryScore]);
     return result.insertId;
 };

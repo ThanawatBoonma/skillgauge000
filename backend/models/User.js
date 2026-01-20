@@ -22,32 +22,32 @@ exports.create = async (userData) => {
     address_id_card, sub_district, district, province, zip_code,
     address_current, card_issue_date, card_expiry_date,
     role, technician_type, experience_years,
-    email, password
+    email, password, phone
   } = userData;
 
   // Hash Password
   const hash = bcrypt.hashSync(password, 12);
 
-  const sql = `
+const sql = `
     INSERT INTO dbuser (
       citizen_id, full_name, birth_date, age,
       address_id_card, sub_district, district, province, zip_code,
       address_current, card_issue_date, card_expiry_date,
       role, technician_type, experience_years,
-      email, password
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      email, password, phone 
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   // ใส่ค่า Default ให้ technician_type กับ experience_years ถ้าไม่ได้ส่งมา
   const finalTechType = technician_type || 'ไม่มี';
   const finalExpYears = experience_years || 0;
 
-  const [result] = await pool.query(sql, [
+const [result] = await pool.query(sql, [
     citizen_id, full_name, birth_date, age,
     address_id_card, sub_district, district, province, zip_code,
     address_current, card_issue_date, card_expiry_date,
     role, finalTechType, finalExpYears,
-    email, hash
+    email, hash, phone 
   ]);
 
   return result.insertId;
