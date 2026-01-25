@@ -1,13 +1,3 @@
-const inferLocalApiBase = () => {
-  if (typeof window === 'undefined') return '';
-  const { protocol, hostname, port } = window.location;
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-  if (!isLocalhost) return '';
-  const devPorts = new Set(['3000', '3001', '3002', '3003']);
-  const apiPort = port && !devPorts.has(port) ? port : '4000';
-  return `${protocol}//${hostname}:${apiPort}`;
-};
-
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000';
 
 function isFormData(body) {
@@ -17,9 +7,17 @@ function isFormData(body) {
 export async function apiRequest(path, options = {}) {
   const { method = 'GET', body, headers, ...rest } = options;
   const requestHeaders = new Headers(headers || {});
+  
+  // ดึง Token จาก LocalStorage
+  const token = localStorage.getItem('token'); 
+  if (token) {
+    // ถ้ามี Token ให้แนบไปใน Header ว่า "Bearer <token>"
+    requestHeaders.set('Authorization', `Bearer ${token}`);
+  }
+
   const config = {
     method,
-    credentials: options.credentials ?? 'include',
+    credentials: options.credentials ?? 'include', // เก็บไว้เผื่อ Backend ใช้ Cookie ด้วย
     ...rest
   };
 
@@ -42,6 +40,8 @@ export async function apiRequest(path, options = {}) {
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, config);
+  
+  // (ส่วนการจัดการ Response)
   const contentType = response.headers.get('content-type') || '';
   let data;
   if (contentType.includes('application/json')) {

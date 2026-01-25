@@ -56,39 +56,72 @@ exports.loginUser = async (req, res) => {
 
 // Register
 exports.registerUser = async (req, res) => {
-  // Validation Check
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   try {
-    const { citizen_id, email } = req.body;
+    let userData = {};
 
-    // เช็ค Citizen ID ซ้ำ
-    const existingCitizen = await User.findByCitizenId(citizen_id);
+    // เช็คว่าข้อมูลมาจากหน้า AdminWorkerRegistration หรือไม่ (ถ้ามี key 'personal' แสดงว่าใช่)
+    if (req.body.personal) {
+      const { personal, address, employment, identity, credentials } = req.body;
+      
+      // 1. แกะข้อมูลจาก Frontend มาใส่ตัวแปรให้ตรงกับ Database
+      userData = {
+        citizen_id: personal.nationalId,
+        full_name: personal.fullName,
+        birth_date: personal.birthDate,
+        
+        // ดึง phone จาก address มาใส่ที่นี่
+        phone: address.phone, 
+        
+        address_id_card: address.addressOnId,
+        province_id: address.province_id,
+        district_id: address.district_id,
+        subdistrict_id: address.subdistrict_id,
+        zip_code: address.postalCode,
+        address_current: address.currentAddress,
+        
+        role: employment.role,
+        technician_type: employment.tradeType,
+        experience_years: employment.experienceYears,
+        
+        card_issue_date: identity.issueDate,
+        card_expiry_date: identity.expiryDate,
+        
+        email: credentials.email,
+        password: credentials.password
+      };
+    } else {
+      // กรณี Register ปกติ (ไม่ได้มาจากหน้า Admin)
+      userData = req.body;
+    }
+
+    // 2. เช็ค ID ซ้ำ
+    const existingCitizen = await User.findByCitizenId(userData.citizen_id);
     if (existingCitizen) {
       return res.status(409).json({ error: 'Citizen ID already exists' });
     }
 
-    // เช็ค Email ซ้ำ
-    if (email) {
-      const existingEmail = await User.findByEmail(email);
+    // 3. เช็ค Email ซ้ำ
+    if (userData.email) {
+      const existingEmail = await User.findByEmail(userData.email);
       if (existingEmail) {
         return res.status(409).json({ error: 'Email already registered' });
       }
     }
 
-    // บันทึกลงฐานข้อมูล
-    const userId = await User.create(req.body);
+    // 4. บันทึกลงฐานข้อมูล
+    const userId = await User.create(userData);
 
-    // ส่ง Response กลับ 
     res.status(201).json({ 
       message: 'User created successfully', 
       userId,
-      full_name: req.body.full_name
+      full_name: userData.full_name
     });
 
   } catch (err) {
     console.error('Register Error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 };

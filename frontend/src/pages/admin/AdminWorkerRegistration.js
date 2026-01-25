@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Select from 'react-select';
 import './AdminWorkerRegistration.css';
 import ThaiDatePicker from '../../components/ThaiDatePicker';
 import { apiRequest } from '../../utils/api';
@@ -77,25 +78,14 @@ const STEP_INDEX_BY_KEY = STEP_FLOW.reduce((accumulator, step, index) => {
 
 const STEP_FIELD_PATHS = {
   personal: [
-    ['personal', 'nationalId'],
-    ['personal', 'fullName'],
-    ['personal', 'birthDate'],
-    ['employment', 'role'],
-    ['employment', 'tradeType'],
-    ['address', 'phone'],
-    ['address', 'addressOnId'],
-    ['address', 'province'],
-    ['address', 'district'],
-    ['address', 'subdistrict'],
-    ['address', 'postalCode'],
-    ['address', 'currentAddress'],
-    ['identity', 'issueDate'],
-    ['identity', 'expiryDate']
+    ['personal', 'nationalId'], ['personal', 'fullName'], ['personal', 'birthDate'],
+    ['employment', 'role'], ['employment', 'tradeType'],
+    ['address', 'phone'], ['address', 'addressOnId'],
+    ['address', 'province_id'], ['address', 'district_id'], ['address', 'subdistrict_id'], // ใช้ ID
+    ['address', 'postalCode'], ['address', 'currentAddress'],
+    ['identity', 'issueDate'], ['identity', 'expiryDate']
   ],
-  credentials: [
-    ['credentials', 'email'],
-    ['credentials', 'password']
-  ],
+  credentials: [['credentials', 'email'], ['credentials', 'password']],
   review: []
 };
 
@@ -202,13 +192,10 @@ const buildInitialFormState = () => ({
     expiryDate: ''
   },
   address: {
-    phone: '',
-    addressOnId: '',
-    province: '',
-    district: '',
-    subdistrict: '',
-    postalCode: '',
-    currentAddress: ''
+    phone: '', addressOnId: '',
+    province_id: '', district_id: '', subdistrict_id: '', // เก็บ ID
+    province_label: '', district_label: '', subdistrict_label: '', // เก็บชื่อไว้โชว์ตอน Review
+    postalCode: '', currentAddress: ''
   },
   employment: {
     role: '',
@@ -235,12 +222,15 @@ const AdminWorkerRegistration = () => {
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [errors, setErrors] = useState({});
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [addressLookupField, setAddressLookupField] = useState(null);
-  const [addressLookupLoading, setAddressLookupLoading] = useState(false);
-  const addressLookupDebounceRef = useRef(null);
-  const addressLookupAbortRef = useRef(null);
-  const addressBlurTimeoutRef = useRef(null);
+// [New] State สำหรับ React-Select
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [subdistricts, setSubdistricts] = useState([]);
+
+  // State สำหรับ Selected Option Object (เพื่อให้ React-Select แสดงค่าที่เลือกค้างไว้ได้ถูกต้อง)
+  const [selectedProvinceOpt, setSelectedProvinceOpt] = useState(null);
+  const [selectedDistrictOpt, setSelectedDistrictOpt] = useState(null);
+  const [selectedSubdistrictOpt, setSelectedSubdistrictOpt] = useState(null);
 
   // Date picker refs
   const birthDateRef = useRef(null);
@@ -275,6 +265,24 @@ const AdminWorkerRegistration = () => {
       return next;
     });
   };
+
+// [New] Load Provinces on Mount (โหลดจังหวัดตอนเข้าหน้าเว็บ)
+  useEffect(() => {
+    const loadProvinces = async () => {
+      try {
+        const response = await apiRequest('/api/location/provinces');
+        
+        setProvinces(response.map(p => ({ 
+          value: p.id, 
+          label: p.name_th, 
+          code: p.code 
+        })));
+      } catch (error) {
+        console.error("Error loading provinces:", error);
+      }
+    };
+    loadProvinces();
+  }, []);
 
   useEffect(() => {
     if (editingWorker) {
@@ -487,141 +495,84 @@ const AdminWorkerRegistration = () => {
     });
   };
 
-  const clearAddressErrors = (keys) => {
-    if (!Array.isArray(keys) || keys.length === 0) {
-      return;
-    }
-    setErrors(prev => {
-      const next = { ...prev };
-      keys.forEach((key) => {
-        const errorKey = getErrorKey('address', key);
-        if (next[errorKey]) {
-          delete next[errorKey];
-        }
-      });
-      return next;
-    });
-  };
+  // [New] Handlers for React-Select
+  const handleProvinceChange = async (option) => {
+    // 1. เก็บค่าที่เลือกลง State
+    setSelectedProvinceOpt(option);
+    
+    // 2. เคลียร์ค่าอำเภอ/ตำบลเดิมทิ้ง (เพราะเปลี่ยนจังหวัดแล้ว)
+    setSelectedDistrictOpt(null);
+    setSelectedSubdistrictOpt(null);
+    setDistricts([]);    // ล้าง list อำเภอเก่า
+    setSubdistricts([]); // ล้าง list ตำบลเก่า
 
-  const cancelAddressBlurTimeout = () => {
-    if (addressBlurTimeoutRef.current) {
-      clearTimeout(addressBlurTimeoutRef.current);
-      addressBlurTimeoutRef.current = null;
-    }
-  };
-
-  const clearAddressLookup = (shouldAbort = false) => {
-    if (shouldAbort && addressLookupAbortRef.current) {
-      addressLookupAbortRef.current.abort();
-      addressLookupAbortRef.current = null;
-    }
-    if (addressLookupDebounceRef.current) {
-      clearTimeout(addressLookupDebounceRef.current);
-      addressLookupDebounceRef.current = null;
-    }
-    setAddressSuggestions([]);
-    setAddressLookupLoading(false);
-    setAddressLookupField(null);
-  };
-
-  const handleAddressFieldBlur = () => {
-    cancelAddressBlurTimeout();
-    addressBlurTimeoutRef.current = setTimeout(() => {
-      clearAddressLookup(true);
-    }, 160);
-  };
-
-  const scheduleAddressLookup = (field, rawValue) => {
-    const value = (rawValue || '').trim();
-    cancelAddressBlurTimeout();
-    if (addressLookupDebounceRef.current) {
-      clearTimeout(addressLookupDebounceRef.current);
-      addressLookupDebounceRef.current = null;
-    }
-
-    if (value.length < 1) {
-      if (field === addressLookupField) {
-        setAddressSuggestions([]);
-        setAddressLookupLoading(false);
+    // 3. อัปเดต Form Data
+    setForm(prev => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        province_id: option ? option.value : '', // เก็บ ID ลง DB
+        province: option ? option.label : '',    // เก็บชื่อไว้โชว์
+        district_id: '', district: '',
+        subdistrict_id: '', subdistrict: '',
+        postalCode: ''
       }
-      return;
-    }
+    }));
 
-    addressLookupDebounceRef.current = setTimeout(async () => {
-      if (addressLookupAbortRef.current) {
-        addressLookupAbortRef.current.abort();
-      }
-      const controller = new AbortController();
-      addressLookupAbortRef.current = controller;
-      setAddressLookupLoading(true);
-      setAddressLookupField(field);
-
+    if (option) {
       try {
-        const params = new URLSearchParams();
-        params.set('limit', '12');
-        params.set('query', value);
-
-        const provinceFilter = field === 'province' ? '' : form.address.province;
-        const districtFilter = field === 'district' ? '' : form.address.district;
-        const subdistrictFilter = field === 'subdistrict' ? '' : form.address.subdistrict;
-
-        if (provinceFilter) {
-          params.set('province', provinceFilter);
-        }
-        if (districtFilter) {
-          params.set('district', districtFilter);
-        }
-        if (subdistrictFilter && field !== 'subdistrict') {
-          params.set('subdistrict', subdistrictFilter);
-        }
-        params.set('field', field);
-
-        const response = await apiRequest(`/api/lookups/addresses?${params.toString()}`, {
-          signal: controller.signal
-        });
-
-        const results = Array.isArray(response?.results) ? response.results : [];
-        setAddressSuggestions(results);
-        setAddressLookupLoading(false);
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          return;
-        }
-        console.error('Address lookup failed:', error);
-        setAddressSuggestions([]);
-        setAddressLookupLoading(false);
-      }
-    }, 220);
-  };
-
-  const handleAddressFieldFocus = (field) => {
-    cancelAddressBlurTimeout();
-    setAddressLookupField(field);
-    const currentValue = form.address[field] || '';
-    if (currentValue.trim().length >= 2) {
-      scheduleAddressLookup(field, currentValue);
+        // ✅ ใช้ apiRequest แบบถูกต้อง (ไม่ต้องใส่ 'GET')
+        // ตรวจสอบว่า Backend ใช้ 'code' หรือ 'id' ในการค้นหา (ในที่นี้สมมติว่าใช้ code)
+        const response = await apiRequest(`/api/location/districts/${option.code}`); 
+        
+        setDistricts(response.map(d => ({ 
+          value: d.id, 
+          label: d.name_th, 
+          code: d.code 
+        })));
+      } catch (error) { console.error(error); }
     }
   };
 
-  const handleAddressSuggestionSelect = (suggestion) => {
-    if (!suggestion) {
-      return;
-    }
-    cancelAddressBlurTimeout();
-    clearAddressLookup(true);
+  const handleDistrictChange = async (option) => {
+    setSelectedDistrictOpt(option);
+    setSelectedSubdistrictOpt(null);
+    setSubdistricts([]);
 
     setForm(prev => ({
       ...prev,
       address: {
         ...prev.address,
-        province: suggestion.province || '',
-        district: suggestion.district || '',
-        subdistrict: suggestion.subdistrict || '',
-        postalCode: suggestion.zipcode || ''
+        district_id: option ? option.value : '',
+        district: option ? option.label : '',
+        subdistrict_id: '', subdistrict: '',
+        postalCode: ''
       }
     }));
 
-    clearAddressErrors(['province', 'district', 'subdistrict', 'postalCode']);
+    if (option) {
+      try {
+        const response = await apiRequest('GET', `/api/location/subdistricts/${option.code}`);
+        setSubdistricts(response.map(s => ({ 
+          value: s.id, 
+          label: s.name_th, 
+          zipCode: s.zip_code 
+        })));
+      } catch (error) { console.error(error); }
+    }
+  };
+
+  const handleSubdistrictChange = (option) => {
+    setSelectedSubdistrictOpt(option);
+    setForm(prev => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        subdistrict_id: option ? option.value : '',
+        subdistrict: option ? option.label : '',
+        postalCode: option ? option.zipCode : '' // ดึง ZipCode มาใส่ให้อัตโนมัติ
+      }
+    }));
   };
 
   const validateCredentials = () => {
@@ -707,56 +658,6 @@ const AdminWorkerRegistration = () => {
         return;
       }
 
-      if (key === 'province') {
-        setForm(prev => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            province: value,
-            district: '',
-            subdistrict: '',
-            postalCode: ''
-          }
-        }));
-        clearAddressErrors(['province', 'district', 'subdistrict', 'postalCode']);
-        scheduleAddressLookup('province', value);
-        return;
-      }
-
-      if (key === 'district') {
-        setForm(prev => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            district: value,
-            subdistrict: '',
-            postalCode: ''
-          }
-        }));
-        clearAddressErrors(['district', 'subdistrict', 'postalCode']);
-        scheduleAddressLookup('district', value);
-        return;
-      }
-
-      if (key === 'subdistrict') {
-        setForm(prev => ({
-          ...prev,
-          address: {
-            ...prev.address,
-            subdistrict: value,
-            postalCode: ''
-          }
-        }));
-        clearAddressErrors(['subdistrict', 'postalCode']);
-        scheduleAddressLookup('subdistrict', value);
-        return;
-      }
-
-      if (key === 'postalCode') {
-        updateField(section, key, value);
-        clearAddressErrors(['postalCode']);
-        return;
-      }
     }
     updateField(section, key, value);
 
@@ -794,7 +695,13 @@ const AdminWorkerRegistration = () => {
     setFeedbackType(null);
     setCurrentStep(0);
     setErrors({});
-    clearAddressLookup(true);
+    
+    // การเคลียร์ State ของ React Select 
+    setSelectedProvinceOpt(null);
+    setSelectedDistrictOpt(null);
+    setSelectedSubdistrictOpt(null);
+    setDistricts([]);    // เคลียร์ list อำเภอ
+    setSubdistricts([]); // เคลียร์ list ตำบล
   };
 
   const handleBack = () => {
@@ -851,7 +758,10 @@ const AdminWorkerRegistration = () => {
       payload.credentials.password = values.password;
     }
 
-    const endpoint = isEditing ? `/api/admin/workers/${editingWorkerId}` : '/api/admin/workers';
+    const endpoint = isEditing 
+  ? `/api/manageusers/workers/${editingWorkerId}` // กรณีแก้ไข: ยิงไปที่ manageusers (ต้องไปเช็ค route manageusers ว่ามี path นี้ไหม)
+  : '/api/register'; // กรณีสร้างใหม่: ยิงไปที่ auth (ซึ่ง index.js กำหนดให้เข้าถึงผ่าน /api + auth.js มี /register)
+
     const method = isEditing ? 'PUT' : 'POST';
 
     try {
@@ -1206,164 +1116,55 @@ const AdminWorkerRegistration = () => {
               </div>
 
               <div className="field-grid two-columns address-compact-grid">
-                <div className="field suggestion-field">
-                  <label>จังหวัด</label>
-                  <input
-                    type="text"
-                    value={form.address.province}
-                    onChange={handleInputChange('address', 'province')}
-                    onFocus={() => handleAddressFieldFocus('province')}
-                    onBlur={handleAddressFieldBlur}
-                    placeholder="จังหวัด"
-                    className={errors[getErrorKey('address', 'province')] ? 'error' : ''}
-                    aria-autocomplete="list"
-                    aria-expanded={Boolean(
-                      addressLookupField === 'province' && (addressLookupLoading || addressSuggestions.length > 0)
-                    )}
+
+                <div className="field">
+                  <label>จังหวัด*</label>
+                  <Select
+                    options={provinces}
+                    value={selectedProvinceOpt}
+                    onChange={handleProvinceChange}
+                    placeholder="ค้นหาจังหวัด..."
+                    isClearable
+                    classNamePrefix="react-select"
+                    noOptionsMessage={() => "ไม่มีตัวเลือก"}
                   />
-                  {errors[getErrorKey('address', 'province')] && (
-                    <span className="error-message">{errors[getErrorKey('address', 'province')]}</span>
-                  )}
-                  {addressLookupField === 'province' && (
-                    <div className="address-suggestion-panel" role="listbox" aria-label="ตัวเลือกจังหวัด">
-                      {addressLookupLoading && (
-                        <div className="address-suggestion-status">กำลังค้นหา...</div>
-                      )}
-                      {!addressLookupLoading && addressSuggestions.length === 0 ? (
-                        <div className="address-suggestion-status">ไม่พบข้อมูลที่ตรงกัน</div>
-                      ) : (
-                        <ul>
-                          {addressSuggestions.map((suggestion, index) => (
-                            <li
-                              key={`${suggestion.province}-${suggestion.district}-${suggestion.subdistrict}-${suggestion.zipcode}-${index}`}
-                              className="address-suggestion-item"
-                              role="option"
-                              onMouseDown={event => {
-                                event.preventDefault();
-                                handleAddressSuggestionSelect(suggestion);
-                              }}
-                            >
-                              <span className="address-suggestion-subdistrict">{suggestion.subdistrict}</span>
-                              <span className="address-suggestion-district">{suggestion.district}</span>
-                              <span className="address-suggestion-province">{suggestion.province}</span>
-                              <span className="address-suggestion-zipcode">{suggestion.zipcode}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
                 </div>
-                <div className="field suggestion-field">
-                  <label>อำเภอ</label>
-                  <input
-                    type="text"
-                    value={form.address.district}
-                    onChange={handleInputChange('address', 'district')}
-                    onFocus={() => handleAddressFieldFocus('district')}
-                    onBlur={handleAddressFieldBlur}
-                    placeholder="อำเภอ"
-                    className={errors[getErrorKey('address', 'district')] ? 'error' : ''}
-                    aria-autocomplete="list"
-                    aria-expanded={Boolean(
-                      addressLookupField === 'district' && (addressLookupLoading || addressSuggestions.length > 0)
-                    )}
+
+                <div className="field">
+                  <label>อำเภอ*</label>
+                  <Select
+                    options={districts}
+                    value={selectedDistrictOpt}
+                    onChange={handleDistrictChange}
+                    placeholder="เลือกอำเภอ..."
+                    isDisabled={!form.address.province_id} // ล็อกถ้ายังไม่เลือกจังหวัด
+                    isClearable
+                    noOptionsMessage={() => "ไม่มีตัวเลือก"}
                   />
-                  {errors[getErrorKey('address', 'district')] && (
-                    <span className="error-message">{errors[getErrorKey('address', 'district')]}</span>
-                  )}
-                  {addressLookupField === 'district' && (
-                    <div className="address-suggestion-panel" role="listbox" aria-label="ตัวเลือกอำเภอ">
-                      {addressLookupLoading && (
-                        <div className="address-suggestion-status">กำลังค้นหา...</div>
-                      )}
-                      {!addressLookupLoading && addressSuggestions.length === 0 ? (
-                        <div className="address-suggestion-status">ไม่พบข้อมูลที่ตรงกัน</div>
-                      ) : (
-                        <ul>
-                          {addressSuggestions.map((suggestion, index) => (
-                            <li
-                              key={`${suggestion.province}-${suggestion.district}-${suggestion.subdistrict}-${suggestion.zipcode}-${index}`}
-                              className="address-suggestion-item"
-                              role="option"
-                              onMouseDown={event => {
-                                event.preventDefault();
-                                handleAddressSuggestionSelect(suggestion);
-                              }}
-                            >
-                              <span className="address-suggestion-subdistrict">{suggestion.subdistrict}</span>
-                              <span className="address-suggestion-district">{suggestion.district}</span>
-                              <span className="address-suggestion-province">{suggestion.province}</span>
-                              <span className="address-suggestion-zipcode">{suggestion.zipcode}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
                 </div>
-                <div className="field suggestion-field">
-                  <label>ตำบล</label>
-                  <input
-                    type="text"
-                    value={form.address.subdistrict}
-                    onChange={handleInputChange('address', 'subdistrict')}
-                    onFocus={() => handleAddressFieldFocus('subdistrict')}
-                    onBlur={handleAddressFieldBlur}
-                    placeholder="ตำบล"
-                    className={errors[getErrorKey('address', 'subdistrict')] ? 'error' : ''}
-                    aria-autocomplete="list"
-                    aria-expanded={Boolean(
-                      addressLookupField === 'subdistrict' && (addressLookupLoading || addressSuggestions.length > 0)
-                    )}
+
+                <div className="field">
+                  <label>ตำบล*</label>
+                  <Select
+                    options={subdistricts}
+                    value={selectedSubdistrictOpt}
+                    onChange={handleSubdistrictChange}
+                    placeholder="เลือกตำบล..."
+                    isDisabled={!form.address.district_id} // ล็อกถ้ายังไม่เลือกอำเภอ
+                    isClearable
+                    noOptionsMessage={() => "ไม่มีตัวเลือก"}
                   />
-                  {errors[getErrorKey('address', 'subdistrict')] && (
-                    <span className="error-message">{errors[getErrorKey('address', 'subdistrict')]}</span>
-                  )}
-                  {addressLookupField === 'subdistrict' && (
-                    <div className="address-suggestion-panel" role="listbox" aria-label="ตัวเลือกตำบล">
-                      {addressLookupLoading && (
-                        <div className="address-suggestion-status">กำลังค้นหา...</div>
-                      )}
-                      {!addressLookupLoading && addressSuggestions.length === 0 ? (
-                        <div className="address-suggestion-status">ไม่พบข้อมูลที่ตรงกัน</div>
-                      ) : (
-                        <ul>
-                          {addressSuggestions.map((suggestion, index) => (
-                            <li
-                              key={`${suggestion.province}-${suggestion.district}-${suggestion.subdistrict}-${suggestion.zipcode}-${index}`}
-                              className="address-suggestion-item"
-                              role="option"
-                              onMouseDown={event => {
-                                event.preventDefault();
-                                handleAddressSuggestionSelect(suggestion);
-                              }}
-                            >
-                              <span className="address-suggestion-subdistrict">{suggestion.subdistrict}</span>
-                              <span className="address-suggestion-district">{suggestion.district}</span>
-                              <span className="address-suggestion-province">{suggestion.province}</span>
-                              <span className="address-suggestion-zipcode">{suggestion.zipcode}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
                 </div>
+
+                {/* รหัสไปรษณีย์ (อันเดิม แปะไว้ต่อท้ายเพื่อให้จัดหน้าสวย) */}
                 <div className="field">
                   <label>รหัสไปรษณีย์</label>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    maxLength={5}
                     value={form.address.postalCode}
-                    onChange={handleInputChange('address', 'postalCode')}
+                    readOnly // ห้ามแก้ เพราะดึงมาจากตำบลอัตโนมัติ
                     placeholder="xxxxx"
-                    className={errors[getErrorKey('address', 'postalCode')] ? 'error' : ''}
                   />
-                  {errors[getErrorKey('address', 'postalCode')] && (
-                    <span className="error-message">{errors[getErrorKey('address', 'postalCode')]}</span>
-                  )}
                 </div>
               </div>
 

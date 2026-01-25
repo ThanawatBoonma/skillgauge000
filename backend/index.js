@@ -7,7 +7,10 @@ const crypto = require('crypto');
 const locationRoutes = require('./routes/location');
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // อนุญาตเฉพาะ Frontend ของเรา
+  credentials: true                // อนุญาตให้ส่ง Cookies/Token ข้ามมาได้
+}));
 
 const pool = require('./config/db');
 
@@ -22,6 +25,8 @@ app.use('/api/location', locationRoutes);
 app.use('/api/managequestion', require('./routes/managequestion'));
 
 app.use('/api/skillAssessment', require('./routes/skillAssessmentTest'));
+
+app.use('/api/admin', require('./routes/manageusers'));
 
 function uuidHex() {
   return crypto.randomBytes(16).toString('hex');

@@ -53,7 +53,7 @@ const Login = () => {
         roles: ['admin']
       };
       try {
-        sessionStorage.setItem('auth_token', token);
+        localStorage.setItem('token', token);
         sessionStorage.setItem('user_id', user.id);
         sessionStorage.setItem('user_email', user.email);
         sessionStorage.setItem('role', 'admin');
@@ -89,7 +89,7 @@ const Login = () => {
 
       // 2. ปรับการเซฟข้อมูลเข้า sessionStorage ให้เป็นแบบ Object
       try {
-        sessionStorage.setItem('auth_token', token);
+        localStorage.setItem('token', token);
         sessionStorage.setItem('role', chosenRole); // เก็บแยกไว้ใช้เช็ค Route
 
         // สร้าง Object เพื่อเซฟให้ WorkerDashboard ไป JSON.parse ต่อได้
