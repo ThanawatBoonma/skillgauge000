@@ -44,7 +44,7 @@ const sql = `
 
 const [result] = await pool.query(sql, [
     citizen_id, full_name, birth_date, age,
-    address_id_card, province_id, district_id, subdistrict_id,, zip_code,
+    address_id_card, province_id, district_id, subdistrict_id, zip_code,
     address_current, card_issue_date, card_expiry_date,
     role, finalTechType, finalExpYears,
     email, hash, phone 

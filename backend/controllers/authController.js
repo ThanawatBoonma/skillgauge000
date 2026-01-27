@@ -66,12 +66,27 @@ exports.registerUser = async (req, res) => {
     if (req.body.personal) {
       const { personal, address, employment, identity, credentials } = req.body;
       
+
+      const tradeMap = {
+        'structure': 'ช่างโครงสร้าง',
+        'electric': 'ช่างไฟฟ้า',
+        'plumbing': 'ช่างประปา',
+        'masonry': 'ช่างก่ออิฐฉาบปูน',
+        'aluminum': 'ช่างประตู-หน้าต่าง', // สังเกต: ต้องตรงกับใน ENUM เป๊ะๆ
+        'ceiling': 'ช่างฝ้าเพดาน',
+        'roofing': 'ช่างหลังคา',
+        'tiling': 'ช่างกระเบื้อง'
+      };
+
+      // แปลงค่า ถ้าหาไม่เจอให้เป็น 'ไม่มี'
+      const thaiTechnicianType = tradeMap[employment.tradeType] || 'ไม่มี';
       // 1. แกะข้อมูลจาก Frontend มาใส่ตัวแปรให้ตรงกับ Database
+
       userData = {
         citizen_id: personal.nationalId,
         full_name: personal.fullName,
         birth_date: personal.birthDate,
-        
+        age: personal.age,
         // ดึง phone จาก address มาใส่ที่นี่
         phone: address.phone, 
         
@@ -83,7 +98,10 @@ exports.registerUser = async (req, res) => {
         address_current: address.currentAddress,
         
         role: employment.role,
-        technician_type: employment.tradeType,
+        
+        // ส่งค่าภาษาไทยที่แปลงแล้วไปแทน
+        technician_type: thaiTechnicianType,
+
         experience_years: employment.experienceYears,
         
         card_issue_date: identity.issueDate,

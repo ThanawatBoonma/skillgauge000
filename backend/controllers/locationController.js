@@ -10,15 +10,15 @@ exports.getProvinces = async (req, res) => {
     
     res.json(provinces);
   } catch (err) {
-    console.error("Error fetching provinces:", err); // [เพิ่ม] ดู Error
+    console.error("Error fetching provinces:", err); 
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.getDistricts = async (req, res) => {
   try {
-    const { province_code } = req.params;
-    const districts = await Location.getDistrictsByProvince(province_code);
+    const { province_id } = req.params;
+    const districts = await Location.getDistrictsByProvince(province_id);
     res.json(districts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -27,8 +27,8 @@ exports.getDistricts = async (req, res) => {
 
 exports.getSubdistricts = async (req, res) => {
   try {
-    const { district_code } = req.params;
-    const subdistricts = await Location.getSubdistrictsByDistrict(district_code);
+    const { amphure_id } = req.params;
+    const subdistricts = await Location.getSubdistrictsByDistrict(amphure_id);
     res.json(subdistricts);
   } catch (err) {
     res.status(500).json({ error: err.message });

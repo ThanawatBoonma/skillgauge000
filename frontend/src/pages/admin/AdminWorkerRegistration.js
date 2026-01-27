@@ -389,7 +389,7 @@ const AdminWorkerRegistration = () => {
           { label: 'จังหวัด', value: form.address.province?.trim() || 'ไม่ระบุ' },
           { label: 'อำเภอ', value: form.address.district?.trim() || 'ไม่ระบุ' },
           { label: 'ตำบล', value: form.address.subdistrict?.trim() || 'ไม่ระบุ' },
-          { label: 'รหัสไปรษณีย์', value: form.address.postalCode?.trim() || 'ไม่ระบุ' },
+          { label: 'รหัสไปรษณีย์', value: String(form.address.postalCode || '').trim() || 'ไม่ระบุ' },
           { label: 'ที่อยู่ปัจจุบัน', value: form.address.currentAddress?.trim() || 'ไม่ระบุ' }
         ]
       },
@@ -523,7 +523,7 @@ const AdminWorkerRegistration = () => {
       try {
         // ✅ ใช้ apiRequest แบบถูกต้อง (ไม่ต้องใส่ 'GET')
         // ตรวจสอบว่า Backend ใช้ 'code' หรือ 'id' ในการค้นหา (ในที่นี้สมมติว่าใช้ code)
-        const response = await apiRequest(`/api/location/districts/${option.code}`); 
+        const response = await apiRequest(`/api/location/districts/${option.value}`);
         
         setDistricts(response.map(d => ({ 
           value: d.id, 
@@ -552,7 +552,7 @@ const AdminWorkerRegistration = () => {
 
     if (option) {
       try {
-        const response = await apiRequest('GET', `/api/location/subdistricts/${option.code}`);
+        const response = await apiRequest(`/api/location/subdistricts/${option.value}`);
         setSubdistricts(response.map(s => ({ 
           value: s.id, 
           label: s.name_th, 
@@ -570,7 +570,7 @@ const AdminWorkerRegistration = () => {
         ...prev.address,
         subdistrict_id: option ? option.value : '',
         subdistrict: option ? option.label : '',
-        postalCode: option ? option.zipCode : '' // ดึง ZipCode มาใส่ให้อัตโนมัติ
+        postalCode: option ? String(option.zipCode) : ''
       }
     }));
   };
@@ -741,22 +741,52 @@ const AdminWorkerRegistration = () => {
       }));
     }
 
-    const payload = {
-      personal: {
-        ...form.personal,
-        age
-      },
-      identity: { ...form.identity },
-      address: { ...form.address },
-      employment: { ...form.employment },
-      credentials: {
-        email: values.email
-      }
+
+    const tradeMap = {
+      'structure': 'ช่างโครงสร้าง',
+      'electric': 'ช่างไฟฟ้า',
+      'plumbing': 'ช่างประปา',
+      'masonry': 'ช่างก่ออิฐฉาบปูน',
+      'aluminum': 'ช่างประตู-หน้าต่าง', // ระวัง! ต้องมีขีดกลางตาม Database
+      'ceiling': 'ช่างฝ้าเพดาน',
+      'roofing': 'ช่างหลังคา',
+      'tiling': 'ช่างกระเบื้อง'
     };
 
-    if (values.password) {
-      payload.credentials.password = values.password;
-    }
+    // แปลงค่าเป็นภาษาไทย (ถ้าไม่มีให้เป็น 'ไม่มี')
+    const thaiTechnicianType = tradeMap[form.employment.tradeType] || 'ไม่มี';
+
+    const payload = {
+      // กลุ่มข้อมูลส่วนตัว
+      citizen_id: form.personal.nationalId,
+      full_name: form.personal.fullName,
+      birth_date: form.personal.birthDate,
+      age: age, // ส่งอายุไปด้วย (Backend รอรับ)
+
+      // กลุ่มที่อยู่ (ต้องใช้ชื่อ _id ตามที่ User.js รอรับ)
+      address_id_card: form.address.addressOnId,
+      province_id: form.address.province_id,     // ส่ง ID
+      district_id: form.address.district_id,     // ส่ง ID
+      subdistrict_id: form.address.subdistrict_id, // ส่ง ID
+      zip_code: form.address.postalCode,
+      address_current: form.address.currentAddress,
+      phone: form.address.phone,
+
+      // กลุ่มงาน
+      role: form.employment.role,
+      // ส่งค่าภาษาไทยไป Database
+      technician_type: thaiTechnicianType,
+      experience_years: form.employment.experienceYears || 0,
+
+      card_issue_date: form.identity.issueDate,
+      card_expiry_date: form.identity.expiryDate,
+
+      email: values.email,
+      password: values.password
+    };
+    
+    // Log ดูว่าส่งอะไรไปบ้าง
+    console.log("Sending Register Payload:", payload);
 
     const endpoint = isEditing 
   ? `/api/manageusers/workers/${editingWorkerId}` // กรณีแก้ไข: ยิงไปที่ manageusers (ต้องไปเช็ค route manageusers ว่ามี path นี้ไหม)
