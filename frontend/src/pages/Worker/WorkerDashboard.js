@@ -64,6 +64,7 @@ const WorkerDashboard = () => {
                 Worker Portal
           </div>
           <button className="menu-item active" onClick={() => navigate('/worker')}>หน้าหลัก</button>
+          <button className="menu-item" onClick={() => navigate('/worker/test')}>แบบทดสอบวัดทักษะ</button>
           <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่า</button>
           <button className="menu-item" onClick={handleLogout} style={{ marginTop: '20px', color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}>
             ออกจากระบบ

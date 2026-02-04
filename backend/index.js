@@ -28,6 +28,11 @@ app.use('/api/skillAssessment', require('./routes/skillAssessmentTest'));
 
 app.use('/api/admin', require('./routes/manageusers'));
 
+app.use('/api/manageproject', require('./routes/manageproject'));
+
+// เพิ่ม Route สำหรับจัดการงานย่อย (Task)
+app.use('/api/manageprojecttask', require('./routes/manageprojecttask'));
+
 function uuidHex() {
   return crypto.randomBytes(16).toString('hex');
 }

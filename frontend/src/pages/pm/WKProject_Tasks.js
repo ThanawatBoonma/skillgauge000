@@ -1,37 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { mockUser } from '../../mock/mockData';
+import axios from 'axios';
 import '../pm/WKDashboard.css';
 
 const WKProjectTasks = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // ✅ จุดสำคัญ: รับข้อมูลโครงการที่ส่งมาจากหน้า Projects (TaskSummary)
+  // รับข้อมูล Project ที่ส่งมาจากหน้า Detail
   const incomingProject = location.state?.project;
-  const user = location.state?.user || { ...mockUser, role: 'Project Manager', name: 'สมชาย ใจดี' };
   
-  // ฟังก์ชัน Logout สำหรับ Sidebar
+  // ดึง User จาก Session
+  const userStr = sessionStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+
+  // ฟังก์ชัน Logout
   const handleLogout = () => {
     if (window.confirm("คุณต้องการออกจากระบบใช่หรือไม่?")) {
       sessionStorage.clear();
+      localStorage.removeItem('token');
       navigate('/login');
     }
   };
 
-  // ✅ ข้อมูลงานย่อย (ล้างค่าว่างเสมอเพื่อรอรับงานใหม่)
   const [taskForm, setTaskForm] = useState({
     taskName: '',
-    taskType: 'งานโครงสร้าง',
-    milpCondition: 'ทั่วไป',
+    technicianType: 'ช่างโครงสร้าง', // Default
+    priority: 'ทั่วไป', // Default
     requiredWorkers: '1',
     taskDetail: '',         
   });
 
-  // ดักฟัง: ถ้าไม่มีข้อมูลโครงการส่งมาให้ดีดกลับหน้าลิสต์โครงการทันที (กันคนกดเข้าหน้าตรงๆ)
+  // ป้องกันเข้าหน้าตรงๆ โดยไม่มี Project
   useEffect(() => {
     if (!incomingProject) {
-      alert("กรุณาเลือกโครงการจากหน้า Projects ก่อนเพิ่มงานย่อย");
+      alert("ไม่พบข้อมูลโครงการ กรุณาเลือกโครงการก่อน");
       navigate('/projects');
     }
   }, [incomingProject, navigate]);
@@ -40,203 +43,150 @@ const WKProjectTasks = () => {
     setTaskForm({ ...taskForm, [e.target.name]: e.target.value });
   };
 
-  const handleSubmitToAssign = (e) => {
+  const handleSaveTask = async (e) => {
     e.preventDefault();
-    // ✅ ส่งข้อมูล "โครงการเดิม" + "งานย่อยใหม่" ไปหน้าเลือกช่าง
-    navigate('/assign-worker', { 
-      state: { 
-        job: { ...incomingProject, ...taskForm }, 
-        user 
-      } 
-    });
+    try {
+        const API = 'http://localhost:4000'; // ตรวจสอบ Port
+        const payload = {
+            pj_id: incomingProject.pj_id,
+            task_name: taskForm.taskName,
+            technician_type: taskForm.technicianType,
+            priority: taskForm.priority,
+            required_workers: parseInt(taskForm.requiredWorkers),
+            description: taskForm.taskDetail
+        };
+
+        // 1. ยิง API สร้าง Task
+        const res = await axios.post(`${API}/api/manageprojecttask/create`, payload);
+        const pj_t_id = res.data.pj_t_id;
+
+        // 2. ไปหน้าเลือกช่าง (WKAssignWorker) พร้อมส่งข้อมูลจำเป็นไป
+        // ต้องแน่ใจว่า Route ของหน้า Assign คือ /assign-worker (หรือตามที่คุณตั้งใน App.js)
+        navigate('/assign-worker', { 
+            state: { 
+                taskId: pj_t_id, 
+                taskData: payload,
+                projectName: incomingProject.project_name
+            } 
+        });
+
+    } catch (err) {
+        console.error("Error creating task:", err);
+        alert('เกิดข้อผิดพลาดในการบันทึกงานย่อย');
+    }
   };
 
+  if (!incomingProject) return null; // ป้องกันการ Render ระหว่าง Redirect
+
+  // Styles
+  const labelStyle = { fontWeight: 'bold', marginBottom: '8px', display: 'block', color: '#2c3e50' };
+  const inputStyle = { width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid #bdc3c7', fontSize: '16px' };
+  const btnStyle = { background: '#e67e22', color: 'white', padding: '12px 40px', border: 'none', borderRadius: '30px', fontSize: '18px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(230, 126, 34, 0.3)' };
+
   return (
-    <div className="dash-layout" style={{ background: '#f8fafc', minHeight: '100vh' }}>
-      
-      {/* Sidebar - ปรับให้เหมือน Worker/Foreman */}
+    <div className="dash-layout">
+      {/* Sidebar เต็มรูปแบบ */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
           PM Portal
         </div>
         <nav className="menu">
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/pm' || location.pathname === '/dashboard' ? 'active' : ''}`} 
-            onClick={() => navigate('/pm', { state: { user } })}
-          >
-            หน้าหลัก
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/project-tasks' || location.pathname === '/define-tasks' ? 'active' : ''}`} 
-            onClick={() => navigate('/project-tasks', { state: { user } })}
-          >
-            มอบหมายงาน
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/projects' ? 'active' : ''}`} 
-            onClick={() => navigate('/projects', { state: { user } })}
-          >
-            โครงการทั้งหมด
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/pm-settings' ? 'active' : ''}`} 
-            onClick={() => navigate('/pm-settings', { state: { user } })}
-          >
-            ตั้งค่า
-          </button>
-          <button 
-            type="button" 
-            className="menu-item logout-btn" 
-            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
-            onClick={handleLogout}
-          >
-            ออกจากระบบ
-          </button>
+          <button type="button" className="menu-item" onClick={() => navigate('/pm', { state: { user } })}>หน้าหลัก</button>
+          <button type="button" className="menu-item active" onClick={() => navigate('/project-tasks', { state: { user } })}>มอบหมายงาน</button>
+          <button type="button" className="menu-item" onClick={() => navigate('/projects', { state: { user } })}>โครงการทั้งหมด</button>
+          <button type="button" className="menu-item" onClick={() => navigate('/pm-settings', { state: { user } })}>ตั้งค่า</button>
+          <button type="button" className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogout}>ออกจากระบบ</button>
         </nav>
       </aside>
 
-      <main className="dash-main" style={{ padding: '40px' }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <main className="dash-main">
+        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
           
-          {/* ✅ เลเยอร์หัวข้อ: แสดงชื่อโครงการที่กำลังเพิ่มงานให้ (สีน้ำเงินเข้ม) */}
-          <header style={{ marginBottom: '30px' }}>
-            <div style={{ background: '#1e293b', color: 'white', padding: '25px 35px', borderRadius: '20px', boxShadow: '0 10px 15px rgba(0,0,0,0.1)' }}>
-              <h2 style={{ margin: 0, fontSize: '24px' }}>🏗️ เพิ่มภารกิจย่อยในโครงการ: {incomingProject?.projectName}</h2>
-              <p style={{ opacity: 0.8, marginTop: '8px', fontSize: '14px' }}>
-                ประเภท: {incomingProject?.projectType} | สถานที่: {incomingProject?.location || incomingProject?.locationDetail}
-              </p>
+           {/* Header & Back */}
+           <div style={{ marginBottom: '20px' }}>
+            <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '14px', marginBottom: '10px' }}>
+                ← ย้อนกลับ
+            </button>
+            <h1 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>กำหนดงานย่อย (Task Definition)</h1>
+            <div style={{ background: '#eef2f7', padding: '15px', borderRadius: '8px', color: '#2c3e50' }}>
+                โครงการ: <strong>{incomingProject.project_name}</strong>
             </div>
-          </header>
-
-          <form onSubmit={handleSubmitToAssign}>
-            {/* ✅ เลเยอร์ฟอร์ม: สีขาวมนๆ พร้อม Shadow นุ่มๆ */}
-            <section style={{ 
-              background: 'white', 
-              padding: '40px', 
-              borderRadius: '24px', 
-              border: '1px solid #e2e8f0', 
-              boxShadow: '0 4px 6px rgba(0,0,0,0.05)' 
-            }}>
-              <h3 style={{ color: '#1e293b', marginBottom: '25px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>รายละเอียดภารกิจใหม่</h3>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                
-                {/* ✅ แถวที่ 1: ชื่อภารกิจ และ ประเภทงานช่าง (อยู่คู่กัน) */}
-                <div>
-                  <label style={labelStyle}>ชื่องานย่อย</label>
-                  <input 
+          </div>
+          
+          <form onSubmit={handleSaveTask} style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+            
+            <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>ชื่องานย่อย *</label>
+                <input 
                     className="input" 
                     name="taskName" 
-                    placeholder="เช่น งานเดินสายไฟห้องน้ำ" 
                     value={taskForm.taskName} 
                     onChange={handleTaskChange} 
                     required 
                     style={inputStyle} 
-                  />
-                </div>
+                    placeholder="เช่น เทปูนชั้น 1, เดินสายไฟห้องนอน"
+                />
+            </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 <div>
-                  <label style={labelStyle}>ประเภทสายงานช่าง</label>
-                  <select className="select" name="taskType" value={taskForm.taskType} onChange={handleTaskChange} style={inputStyle}>
-                    <option value="งานโครงสร้าง">งานโครงสร้าง</option>
-                    <option value="งานไฟฟ้า">งานไฟฟ้า</option>
-                    <option value="งานประปา">งานประปา</option>
-                    <option value="งานสี">งานสี</option>
-                    <option value="งานกระเบื้อง">งานกระเบื้อง</option>
-                    <option value="งานหลังคา">งานหลังคา</option>
-                  </select>
+                    <label style={labelStyle}>ประเภทสายงานช่าง *</label>
+                    <select className="input" name="technicianType" value={taskForm.technicianType} onChange={handleTaskChange} style={inputStyle}>
+                        <option value="ช่างโครงสร้าง">ช่างโครงสร้าง</option>
+                        <option value="ช่างไฟฟ้า">ช่างไฟฟ้า</option>
+                        <option value="ช่างประปา">ช่างประปา</option>
+                        <option value="ช่างก่ออิฐฉาบปูน">ช่างก่ออิฐฉาบปูน</option>
+                        <option value="ช่างประตู-หน้าต่าง">ช่างประตู-หน้าต่าง</option>
+                        <option value="ช่างฝ้าเพดาน">ช่างฝ้าเพดาน</option>
+                        <option value="ช่างหลังคา">ช่างหลังคา</option>
+                        <option value="ช่างกระเบื้อง">ช่างกระเบื้อง</option>
+                    </select>
                 </div>
-
-                {/* ✅ แถวที่ 2: เงื่อนไขงาน และ จำนวนช่าง */}
                 <div>
-                  <label style={labelStyle}>เงื่อนไขงาน (Priority)</label>
-                  <select className="select" name="milpCondition" value={taskForm.milpCondition} onChange={handleTaskChange} style={inputStyle}>
-                    <option value="ทั่วไป">ทั่วไป (Normal)</option>
-                    <option value="เร่งด่วน">เร่งด่วน (Urgent)</option>
-                    <option value="วิกฤต">วิกฤต (Critical)</option>
-                  </select>
+                    <label style={labelStyle}>เงื่อนไขความชำนาญ (Priority) *</label>
+                    <select className="input" name="priority" value={taskForm.priority} onChange={handleTaskChange} style={inputStyle}>
+                        <option value="ทั่วไป">ทั่วไป (ระดับพื้นฐานขึ้นไป)</option>
+                        <option value="ชำนาญ">ชำนาญ (ระดับ 1 ขึ้นไป)</option>
+                        <option value="ชำนาญงานพิเศษ">ชำนาญงานพิเศษ (ระดับ 2 ขึ้นไป)</option>
+                    </select>
                 </div>
+            </div>
 
-                <div>
-                  <label style={labelStyle}>จำนวนช่างที่ต้องการ (คน)</label>
-                  <input 
-                    type="number" 
+            <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>จำนวนช่างที่ต้องการ (คน) *</label>
+                <input 
                     className="input" 
+                    type="number" 
                     name="requiredWorkers" 
                     value={taskForm.requiredWorkers} 
                     onChange={handleTaskChange} 
                     min="1" 
-                    required 
+                    required
                     style={inputStyle} 
-                  />
-                </div>
+                />
+            </div>
 
-                {/* ✅ แถวที่ 3: รายละเอียดงานย่อย (Textarea ตัวใหญ่) */}
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={labelStyle}>รายละเอียดและคำสั่งงานปฏิบัติ</label>
-                  <textarea 
+            <div style={{ marginBottom: '30px' }}>
+                <label style={labelStyle}>รายละเอียดและคำสั่งงาน</label>
+                <textarea 
                     className="input" 
                     name="taskDetail" 
-                    placeholder="ระบุรายละเอียดงานที่ต้องการให้ช่างปฏิบัติอย่างละเอียด..." 
                     value={taskForm.taskDetail} 
                     onChange={handleTaskChange} 
-                    required 
-                    style={{ ...inputStyle, minHeight: '150px', resize: 'vertical' }} 
-                  />
-                </div>
+                    rows="4" 
+                    style={inputStyle} 
+                    placeholder="รายละเอียดเพิ่มเติมสำหรับช่าง..."
+                />
+            </div>
 
-              </div>
-
-              {/* ปุ่มบันทึก - สีส้มโมเดิร์น (#e67e22) เพื่อให้ต่างจากหน้าโครงการหลัก */}
-              <div style={{ marginTop: '40px', textAlign: 'center' }}>
-                <button 
-                  type="submit" 
-                  style={{ 
-                    background: '#e67e22', 
-                    color: 'white', 
-                    padding: '16px 80px', 
-                    borderRadius: '50px', 
-                    border: 'none', 
-                    fontWeight: 'bold', 
-                    fontSize: '18px', 
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(230, 126, 34, 0.2)'
-                  }}
-                >
-                  บันทึกภารกิจและไปเลือกช่าง ➝
-                </button>
-              </div>
-
-            </section>
+            <div style={{ textAlign: 'center' }}>
+                <button type="submit" style={btnStyle}>บันทึกภารกิจและไปเลือกช่าง ➝</button>
+            </div>
           </form>
         </div>
       </main>
     </div>
   );
-};
-
-// สไตล์คุมเลเยอร์
-const labelStyle = { 
-  fontWeight: '700', 
-  display: 'block', 
-  marginBottom: '10px', 
-  color: '#475569', 
-  fontSize: '14px' 
-};
-
-const inputStyle = { 
-  width: '100%', 
-  padding: '14px 20px', 
-  borderRadius: '12px', 
-  border: '1px solid #cbd5e1', 
-  boxSizing: 'border-box',
-  fontSize: '16px',
-  background: '#fcfcfc',
-  outline: 'none'
 };
 
 export default WKProjectTasks;

@@ -55,6 +55,9 @@ const WorkerSettings = () => {
             หน้าหลัก
             
           </button>
+
+          <button className="menu-item" onClick={() => navigate('/worker/test')}>แบบทดสอบวัดทักษะ</button>
+          
           <button 
             type="button" 
             className="menu-item active"
