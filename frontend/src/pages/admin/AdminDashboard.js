@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './Dashboard.css';
-import { mockUser } from '../mock/mockData';
-import AdminOverview from './admin/AdminOverview';
-import AdminUsersTable from './admin/AdminUsersTable';
-import AdminQuizBank from './admin/AdminQuizBank';
-import AdminAuditLog from './admin/AdminAuditLog';
-import AdminSettings from './admin/AdminSettings';
+import '../Dashboard.css';
+import { mockUser } from '../../mock/mockData';
+import AdminOverview from './AdminOverview';
+import AdminUsersTable from './AdminUsersTable';
+import AdminQuizBank from './AdminQuizBank';
+import AdminAuditLog from './AdminAuditLog';
+import AdminSettings from './AdminSettings';
 
 const AdminDashboard = () => {
   const location = useLocation();

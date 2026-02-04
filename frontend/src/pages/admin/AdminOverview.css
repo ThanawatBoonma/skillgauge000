@@ -147,7 +147,7 @@
 /* Content Grid */
 .admin-content-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1.5rem;
 }
 
@@ -267,85 +267,6 @@
   display: block;
   margin-bottom: 1rem;
   opacity: 0.5;
-}
-
-/* Quick Actions Grid */
-.quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-.quick-action-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1.5rem 1rem;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-  overflow: hidden;
-  font-family: 'Noto Sans Thai', 'Inter', sans-serif;
-}
-
-.quick-action-card:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05);
-}
-
-.action-icon-circle {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.quick-action-card:hover .action-icon-circle {
-  transform: scale(1.1);
-}
-
-.action-icon-circle.blue {
-  background: #eff6ff;
-  color: #3b82f6;
-}
-
-.action-icon-circle.green {
-  background: #f0fdf4;
-  color: #22c55e;
-}
-
-.action-icon-circle.orange {
-  background: #fff7ed;
-  color: #f97316;
-}
-
-.action-icon-circle.purple {
-  background: #faf5ff;
-  color: #a855f7;
-}
-
-.action-label {
-  font-weight: 700;
-  color: #334155;
-  font-size: 0.95rem;
-  margin-bottom: 0.25rem;
-  font-family: 'Noto Sans Thai', 'Inter', sans-serif;
-}
-
-.action-desc {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  font-family: 'Noto Sans Thai', 'Inter', sans-serif;
 }
 
 @media (max-width: 1024px) {

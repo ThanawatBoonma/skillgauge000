@@ -17,7 +17,8 @@ const AdminUsersTable = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterCategory, setFilterCategory] = useState(location.state?.filterCategory || 'all');
+  const [filterStatus, setFilterStatus] = useState(location.state?.filterStatus || 'all');
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,12 +28,8 @@ const AdminUsersTable = () => {
     try {
       setLoading(true);
       setError('');
-      const data = await apiRequest('/api/admin/workers');
-      const items = Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data)
-          ? data
-          : [];
+      const data = await apiRequest('/api/manageusers/pulluser');
+      const items = Array.isArray(data) ? data : []; 
       setWorkers(items);
     } catch (err) {
       console.error('Failed to load workers', err);
@@ -64,13 +61,17 @@ const AdminUsersTable = () => {
       const matchesSearch = (worker.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (worker.phone || '').includes(searchTerm);
       const matchesCategory = filterCategory === 'all' || worker.category === filterCategory;
-      return matchesSearch && matchesCategory;
+      const matchesStatus = filterStatus === 'all' || 
+                            (filterStatus === 'probation' && worker.status === 'probation') ||
+                            (filterStatus === 'permanent' && worker.status !== 'probation');
+
+      return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [workers, searchTerm, filterCategory]);
+  }, [workers, searchTerm, filterCategory, filterStatus]);
 
   const hasActiveFilters = useMemo(() => {
-    return Boolean(searchTerm.trim()) || filterCategory !== 'all';
-  }, [searchTerm, filterCategory]);
+    return Boolean(searchTerm.trim()) || filterCategory !== 'all' || filterStatus !== 'all';
+  }, [searchTerm, filterCategory, filterStatus]);
 
   const handleDelete = async (id) => {
     if (!id) {
@@ -83,7 +84,7 @@ const AdminUsersTable = () => {
     }
 
     try {
-      await apiRequest(`/api/admin/workers/${id}`, { method: 'DELETE' });
+      await apiRequest(`/api/manageusers/deleteuser/${id}`, { method: 'DELETE' });
       await loadWorkers();
     } catch (err) {
       console.error('Failed to delete worker', err);
@@ -91,34 +92,22 @@ const AdminUsersTable = () => {
     }
   };
 
-  const openWorkerForm = async (worker, viewOnly = false) => {
-    if (!worker?.id) {
-      console.warn('Worker data is incomplete');
-      return;
-    }
-
-    try {
-      const payload = worker.fullData
-        ? worker
-        : await apiRequest(`/api/admin/workers/${worker.id}`);
-      navigate('/admin/worker-registration', {
-        state: {
-          editWorker: payload,
-          viewOnly
-        }
-      });
-    } catch (err) {
-      console.error('Failed to load worker detail', err);
-      setError(err.message || 'ไม่สามารถเปิดรายละเอียดพนักงานได้');
-    }
-  };
 
   const handleEdit = (worker) => {
-    openWorkerForm(worker, false);
+    // สั่งให้เปลี่ยนหน้าไปที่ /admin/users/edit
+    // พร้อมแนบข้อมูลพนักงาน (worker) ไปด้วยในชื่อ state: { editWorker: ... }
+    // เพื่อให้หน้า AdminUserTableDataEdit รับไปแสดงผลต่อได้
+    navigate('/admin/users/edit', { 
+      state: { editWorker: worker } 
+    });
   };
 
   const handleView = (worker) => {
-    openWorkerForm(worker, true);
+    // สั่งให้เปลี่ยนหน้าไปที่ /admin/users/view
+    // พร้อมแนบข้อมูลพนักงานไปด้วยในชื่อ state: { worker: ... }
+    navigate('/admin/users/view', { 
+      state: { worker: worker } 
+    });
   };
 
   return (
@@ -163,10 +152,19 @@ const AdminUsersTable = () => {
             </div>
             <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="all">ทุกประเภท</option>
-              <option value="ช่างไฟฟ้า">ช่างไฟฟ้า</option>
+              <option value="ช่างโครงสร้าง">ช่างโครงสร้าง</option>
               <option value="ช่างประปา">ช่างประปา</option>
-              <option value="ช่างปูน">ช่างปูน</option>
-              <option value="ช่างเหล็ก">ช่างเหล็ก</option>
+              <option value="ช่างหลังคา">ช่างหลังคา</option>
+              <option value="ช่างก่ออิฐฉาบปูน">ช่างก่ออิฐฉาบปูน</option>
+              <option value="ช่างประตูหน้าต่างอลูมิเนียม">ช่างประตูหน้าต่างอลูมิเนียม</option>
+              <option value="ช่างฝ้าเพดาล">ช่างฝ้าเพดาล</option>
+              <option value="ช่างไฟฟ้า">ช่างไฟฟ้า</option>
+              <option value="ช่างกระเบื้อง">ช่างกระเบื้อง</option>
+            </select>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ marginLeft: '0.5rem' }}>
+              <option value="all">ทุกสถานะ</option>
+              <option value="permanent">ผ่านโปร (Permanent)</option>
+              <option value="probation">ทดลองงาน (Probation)</option>
             </select>
           </div>
         </div>
@@ -193,10 +191,11 @@ const AdminUsersTable = () => {
               filteredWorkers.map(worker => (
                 <div key={worker.id} className="admin-workers-table__row">
                   <div className="col col-name" data-label="ชื่อ-นามสกุล">
-                    <span className="worker-name">{worker.name}</span>
+                    <span className="worker-name">{worker.full_name}</span>
                   </div>
                   <div className="col col-email" data-label="อีเมล">{worker.email || '—'}</div>
-                  <div className="col col-password" data-label="รหัสผ่าน">{worker.passwordHash || '—'}</div>
+                  {/* Password ไม่ควรแสดง หรือใส่เป็น **** ไว้ */}
+                  <div className="col col-password" data-label="รหัสผ่าน">******</div>
                   <div className="col col-phone" data-label="เบอร์โทร">{worker.phone || '—'}</div>
                   <div className="col col-role" data-label="Role">{worker.role || '—'}</div>
                   <div className="col col-actions" data-label="จัดการ">

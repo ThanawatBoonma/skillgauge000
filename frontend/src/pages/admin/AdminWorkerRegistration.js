@@ -754,16 +754,27 @@ const AdminWorkerRegistration = () => {
     };
 
     // แปลงค่าเป็นภาษาไทย (ถ้าไม่มีให้เป็น 'ไม่มี')
-    const thaiTechnicianType = tradeMap[form.employment.tradeType] || 'ไม่มี';
+    let thaiTechnicianType = 'ไม่มี'; // ตั้งค่าเริ่มต้นเป็น 'ไม่มี' ไว้ก่อน
+
+    if (form.employment.role === 'worker') {
+      // ถ้าเป็น Worker ค่อยไปแปลงค่าจาก tradeType
+      thaiTechnicianType = tradeMap[form.employment.tradeType] || 'ไม่มี';
+    } else {
+      // ถ้าเป็น Foreman (fm) หรือ PM (pm) ให้เป็น 'ไม่มี' เสมอ
+      thaiTechnicianType = 'ไม่มี';
+    }
+
+    let backendRole = form.employment.role;
+    if (backendRole === 'fm') backendRole = 'foreman';
+    if (backendRole === 'pm') backendRole = 'projectmanager';
 
     const payload = {
       // กลุ่มข้อมูลส่วนตัว
       citizen_id: form.personal.nationalId,
       full_name: form.personal.fullName,
       birth_date: form.personal.birthDate,
-      age: age, // ส่งอายุไปด้วย (Backend รอรับ)
-
-      // กลุ่มที่อยู่ (ต้องใช้ชื่อ _id ตามที่ User.js รอรับ)
+      age: age, 
+      // กลุ่มข้อมูลที่อยู่
       address_id_card: form.address.addressOnId,
       province_id: form.address.province_id,     // ส่ง ID
       district_id: form.address.district_id,     // ส่ง ID
@@ -771,10 +782,8 @@ const AdminWorkerRegistration = () => {
       zip_code: form.address.postalCode,
       address_current: form.address.currentAddress,
       phone: form.address.phone,
-
       // กลุ่มงาน
-      role: form.employment.role,
-      // ส่งค่าภาษาไทยไป Database
+      role: backendRole,      // ส่งค่าภาษาไทยไป Database
       technician_type: thaiTechnicianType,
       experience_years: form.employment.experienceYears || 0,
 

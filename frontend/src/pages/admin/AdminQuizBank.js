@@ -6,6 +6,7 @@ import { apiRequest } from '../../utils/api';
 import ThaiDatePicker from '../../components/ThaiDatePicker';
 
 const ASSESSMENT_QUESTION_COUNT = 60;
+const DEFAULT_ASSESSMENT_DURATION_MINUTES = 60;
 const ROUND_NEW_VALUE = '__new__';
 const STORAGE_KEYS = {
   roundId: 'quizBankSelectedRoundId',
@@ -14,14 +15,14 @@ const STORAGE_KEYS = {
 const TABLE_FILTER_ALL = 'all';
 
 const CATEGORY_OPTIONS = [
-  { value: 'safety', label: '1.ช่างโครงสร้าง' },
-  { value: 'electric', label: '2.ช่างไฟฟ้า' },
-  { value: 'plumbing', label: '3.ช่างประปา' },
-  { value: 'steel', label: '4.ช่างเหล็ก' },
-  { value: 'carpenter', label: '5.ช่างไม้' },
-  { value: 'hvac', label: '6.ช่างเครื่องปรับอากาศ' },
-  { value: 'other', label: '7.อื่นๆ' }
-  
+  { value: 'structure', label: '1.โครงสร้าง' },
+  { value: 'plumbing', label: '2.ประปา' },
+  { value: 'roofing', label: '3.หลังคา' },
+  { value: 'masonry', label: '4.ก่ออิฐฉาบปูน' },
+  { value: 'aluminum', label: '5.ประตูหน้าต่างอลูมิเนียม' },
+  { value: 'ceiling', label: '6.ฝ้าเพดาล' },
+  { value: 'electric', label: '7.ไฟฟ้า' },
+  { value: 'tiling', label: '8.กระเบื้อง' }
 ];
 
 const CATEGORY_BUTTON_OPTIONS = CATEGORY_OPTIONS;
@@ -31,10 +32,27 @@ const CATEGORY_LABELS = CATEGORY_OPTIONS.reduce((accumulator, option) => {
   return accumulator;
 }, {});
 
+const DEFAULT_SUBCATEGORY_OPTIONS = {
+  structure: [
+    { value: 'rebar', label: '1. งานเหล็กเสริม (Rebar)' },
+    { value: 'concrete', label: '2. งานคอนกรีต (Concrete)' },
+    { value: 'formwork', label: '3. งานไม้แบบ (Formwork)' },
+    { value: 'tools', label: '4. องค์อาคาร: คาน/เสา/ฐานราก' },
+    { value: 'theory', label: '5. ทฤษฎีแบบ/พฤติ (Design Theory)' }
+  ],
+  plumbing: [],
+  roofing: [],
+  masonry: [],
+  aluminum: [],
+  ceiling: [],
+  electric: [],
+  tiling: []
+};
+
 const DIFFICULTY_OPTIONS = [
-  { value: 'easy', label: 'ง่าย' },
-  { value: 'medium', label: 'ปานกลาง' },
-  { value: 'hard', label: 'ยาก' }
+  { value: 'easy', label: 'ระดับที่ 1' },
+  { value: 'medium', label: 'ระดับที่ 2' },
+  { value: 'hard', label: 'ระดับที่ 3' }
 ];
 
 const DIFFICULTY_LABELS = DIFFICULTY_OPTIONS.reduce((accumulator, option) => {
@@ -52,16 +70,8 @@ const QUESTION_ERROR_MESSAGES = {
   forbidden: 'คุณไม่มีสิทธิ์ทำรายการนี้'
 };
 
-const SETTINGS_ERROR_MESSAGES = {
-  invalid_start_at: 'รูปแบบเวลาเริ่มสอบไม่ถูกต้อง',
-  invalid_end_at: 'รูปแบบเวลาปิดสอบไม่ถูกต้อง',
-  end_before_start: 'เวลาปิดสอบต้องอยู่หลังเวลาเริ่มสอบ',
-  settings_unavailable: 'ไม่พบการตั้งค่าการสอบในระบบ'
-};
-
 const GENERIC_ERROR_MESSAGES = {
   ...QUESTION_ERROR_MESSAGES,
-  ...SETTINGS_ERROR_MESSAGES,
   invalid_title: 'กรุณาระบุชื่อกิจกรรมให้ถูกต้อง',
   invalid_id: 'รหัสไม่ถูกต้อง',
   not_found: 'ไม่พบข้อมูลในระบบ'
@@ -86,60 +96,6 @@ const createInitialForm = (categoryValue = null) => {
   };
 };
 
-const toISOStringOrNull = (dateValue) => {
-  if (!(dateValue instanceof Date)) {
-    return null;
-  }
-  const timestamp = dateValue.getTime();
-  if (Number.isNaN(timestamp)) {
-    return null;
-  }
-  return dateValue.toISOString();
-};
-
-const extractDatePart = (value) => {
-  if (!value) {
-    return '';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  return date.toISOString().slice(0, 10);
-};
-
-const extractTimePart = (value) => {
-  if (!value) {
-    return '';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  return date.toISOString().slice(11, 16);
-};
-
-const buildLocalDateTime = (dateValue, timeValue) => {
-  const trimmedDate = typeof dateValue === 'string' ? dateValue.trim() : '';
-  if (!trimmedDate) {
-    return null;
-  }
-
-  const [hourPart = '00', minutePart = '00'] = (timeValue || '').split(':');
-  const hours = Number.parseInt(hourPart, 10);
-  const minutes = Number.parseInt(minutePart, 10);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return null;
-  }
-
-  const isoCandidate = `${trimmedDate}T${hourPart.padStart(2, '0')}:${minutePart.padStart(2, '0')}:00`;
-  const date = new Date(isoCandidate);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  return date;
-};
-
 const toFriendlyApiMessage = (error, fallback = 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง') => {
   const messageKey = error?.data?.message || error?.message;
   if (messageKey && GENERIC_ERROR_MESSAGES[messageKey]) {
@@ -151,11 +107,45 @@ const toFriendlyApiMessage = (error, fallback = 'เกิดข้อผิด�
   return fallback;
 };
 
+const toLocalISOString = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  return localDate.toISOString().slice(0, 16);
+};
+
 const AdminQuizBank = () => {
   const navigate = useNavigate();
   const storedCategory = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.category) : null;
   const initialCategory = storedCategory && CATEGORY_LABELS[storedCategory] ? storedCategory : CATEGORY_OPTIONS[0].value;
   const storedRoundId = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.roundId) : null;
+
+  const [subcategoryOptions, setSubcategoryOptions] = useState(DEFAULT_SUBCATEGORY_OPTIONS);
+
+  useEffect(() => {
+    const storedOptions = localStorage.getItem('admin_subcategory_options');
+    if (storedOptions) {
+      try {
+        setSubcategoryOptions(JSON.parse(storedOptions));
+      } catch (e) { /* ignore */ }
+    }
+  }, []);
+
+  const [quotaPresets, setQuotaPresets] = useState({});
+  const [selectedPresetName, setSelectedPresetName] = useState('');
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const stored = localStorage.getItem('admin_quota_presets');
+    if (stored) {
+      try {
+        setQuotaPresets(JSON.parse(stored));
+      } catch (e) { /* ignore */ }
+    }
+  }, []);
 
   const categorySelectSeqRef = useRef(0);
 
@@ -167,37 +157,98 @@ const AdminQuizBank = () => {
   const [roundsInitialized, setRoundsInitialized] = useState(false);
   const [roundsError, setRoundsError] = useState('');
   const [selectedRoundId, setSelectedRoundId] = useState(storedRoundId || ROUND_NEW_VALUE);
+  const selectedRoundIdRef = useRef(selectedRoundId);
+  useEffect(() => { selectedRoundIdRef.current = selectedRoundId; }, [selectedRoundId]);
   const [questionError, setQuestionError] = useState('');
   const [questionMessage, setQuestionMessage] = useState('');
   const [deletingQuestionId, setDeletingQuestionId] = useState(null);
   const [roundForm, setRoundForm] = useState({
-    category: initialCategory
+    category: initialCategory,
+    startAt: '',
+    endAt: '',
+    questionCount: ASSESSMENT_QUESTION_COUNT,
+    passingScore: 60, // Default 60%
+    durationMinutes: DEFAULT_ASSESSMENT_DURATION_MINUTES,
+    showScore: true,
+    showAnswers: false,
+    showBreakdown: true,
+    subcategoryQuotas: {},
+    criteria: { level1: 60, level2: 70, level3: 80 }
   });
   const [roundSelectionTouched, setRoundSelectionTouched] = useState(Boolean(storedRoundId));
   const [roundSaving, setRoundSaving] = useState(false);
   const [roundError, setRoundError] = useState('');
   const [roundMessage, setRoundMessage] = useState('');
-  const [settings, setSettings] = useState({
-    questionCount: String(ASSESSMENT_QUESTION_COUNT),
-    startDate: '',
-    startTime: '',
-    endDate: '',
-    endTime: '',
-    frequencyMonths: ''
-  });
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsError, setSettingsError] = useState('');
-  const [settingsMessage, setSettingsMessage] = useState('');
   const [tableCategoryFilter, setTableCategoryFilter] = useState(TABLE_FILTER_ALL);
   const [tableDifficultyFilter, setTableDifficultyFilter] = useState(TABLE_FILTER_ALL);
+  const [tableSubcategoryFilter, setTableSubcategoryFilter] = useState(TABLE_FILTER_ALL);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 7;
+
+  const [structuralQuestions, setStructuralQuestions] = useState([]);
 
   const loadQuestions = useCallback(async () => {
     setQuestionsLoading(true);
     setQuestionsError('');
     try {
+      // โหลดคำถามปกติ
       const response = await apiRequest(`/api/admin/questions?limit=${QUESTIONS_FETCH_LIMIT}`);
       const items = Array.isArray(response?.items) ? response.items : [];
       setQuestions(items);
+
+      // โหลดคำถามโครงสร้าง
+      try {
+        const structResponse = await apiRequest('/api/question-structural/all');
+        const structItems = Array.isArray(structResponse) ? structResponse : [];
+        
+        console.log('Loaded structural questions:', structItems.length); // Debug log
+        
+        // แปลงข้อมูลจาก question_Structural ให้เป็นรูปแบบเดียวกับ questions
+        const converted = structItems.map(item => {
+          // Map skill_type text to internal value
+          let mappedSubcategory = item.skill_type;
+          if (item.skill_type && subcategoryOptions.structure) {
+            const found = subcategoryOptions.structure.find(opt => {
+              const skillStr = String(item.skill_type).trim();
+              const label = opt.label.trim();
+
+              // Check for exact match, containment, or specific keywords for problematic categories
+              if (label === skillStr || label.includes(skillStr) || skillStr.includes(label)) return true;
+              if (opt.value === 'rebar' && (skillStr.includes('เหล็ก') || skillStr.toLowerCase().includes('rebar'))) return true;
+              if (opt.value === 'concrete' && (skillStr.includes('คอนกรีต') || skillStr.toLowerCase().includes('concrete'))) return true;
+              if (opt.value === 'formwork' && (skillStr.includes('ไม้แบบ') || skillStr.toLowerCase().includes('formwork'))) return true;
+              if (opt.value === 'tools' && (skillStr.includes('องค์ความรู้') || skillStr.includes('เครื่องมือ') || skillStr.includes('คุณภาพ') || skillStr.includes('คาม') || skillStr.includes('องค์อาคาร') || skillStr.includes('คาน') || skillStr.includes('เสา') || skillStr.includes('ฐานราก'))) return true;
+              if (opt.value === 'theory' && (skillStr.includes('ทฤษฎี') || skillStr.includes('Design') || skillStr.includes('พฤติ'))) return true;
+              return false;
+            });
+            if (found) {
+              mappedSubcategory = found.value;
+            }
+          }
+
+          return {
+            id: `struct_${item.id}`,
+            text: item.question_text,
+            category: 'structure',
+            subcategory: mappedSubcategory || null,
+            difficulty: item.difficulty_level === 1 ? 'easy' : item.difficulty_level === 2 ? 'medium' : 'hard',
+            options: [
+              { text: item.choice_a, isCorrect: item.answer === 'A', is_correct: item.answer === 'A' },
+              { text: item.choice_b, isCorrect: item.answer === 'B', is_correct: item.answer === 'B' },
+              { text: item.choice_c, isCorrect: item.answer === 'C', is_correct: item.answer === 'C' },
+              { text: item.choice_d, isCorrect: item.answer === 'D', is_correct: item.answer === 'D' }
+            ],
+            _originalId: item.id,
+            _source: 'question_Structural'
+          };
+        });
+        
+        console.log('Converted structural questions:', converted.length); // Debug log
+        setStructuralQuestions(converted);
+      } catch (structError) {
+        console.error('Failed to load structural questions', structError);
+        setStructuralQuestions([]);
+      }
     } catch (error) {
       console.error('Failed to load assessment questions', error);
       setQuestions([]);
@@ -205,27 +256,7 @@ const AdminQuizBank = () => {
     } finally {
       setQuestionsLoading(false);
     }
-  }, []);
-
-  const loadSettings = useCallback(async () => {
-    setSettingsError('');
-    try {
-      const response = await apiRequest('/api/admin/assessments/settings');
-      if (response) {
-        setSettings({
-          questionCount: String(ASSESSMENT_QUESTION_COUNT),
-          startDate: extractDatePart(response.startAt),
-          startTime: extractTimePart(response.startAt),
-          endDate: extractDatePart(response.endAt),
-          endTime: extractTimePart(response.endAt),
-          frequencyMonths: response.frequencyMonths ? String(response.frequencyMonths) : ''
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load assessment settings', error);
-      setSettingsError(toFriendlyApiMessage(error, 'ไม่สามารถโหลดการตั้งค่าการสอบได้'));
-    }
-  }, []);
+  }, [subcategoryOptions]);
 
   const loadRounds = useCallback(async (preferredId, options = {}) => {
     const { keepSelection = false } = options;
@@ -238,11 +269,12 @@ const AdminQuizBank = () => {
 
       if (!keepSelection) {
         let nextSelection = ROUND_NEW_VALUE;
+        const currentId = selectedRoundIdRef.current;
         if (preferredId && items.some(item => item.id === preferredId)) {
           nextSelection = preferredId;
-        } else if (selectedRoundId && selectedRoundId !== ROUND_NEW_VALUE && items.some(item => item.id === selectedRoundId)) {
-          nextSelection = selectedRoundId;
-        } else if (!selectedRoundId && items.length) {
+        } else if (currentId && currentId !== ROUND_NEW_VALUE && items.some(item => item.id === currentId)) {
+          nextSelection = currentId;
+        } else if (!currentId && items.length) {
           nextSelection = items[0].id;
         }
 
@@ -261,12 +293,21 @@ const AdminQuizBank = () => {
       setRoundsLoading(false);
       setRoundsInitialized(true);
     }
-  }, [selectedRoundId]);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setQuestionsLoading(true);
+    loadQuestions();
+    if (selectedRoundId && selectedRoundId !== ROUND_NEW_VALUE) {
+      loadRounds(selectedRoundId);
+    } else {
+      loadRounds(undefined, { keepSelection: true });
+    }
+  }, [loadQuestions, loadRounds, selectedRoundId]);
 
   useEffect(() => {
     loadQuestions();
-    loadSettings();
-  }, [loadQuestions, loadSettings]);
+  }, [loadQuestions]);
 
   useEffect(() => {
     const storedRoundId = typeof window !== 'undefined' ? window.localStorage.getItem(STORAGE_KEYS.roundId) : null;
@@ -284,7 +325,17 @@ const AdminQuizBank = () => {
     if (matched) {
       setRoundForm(prev => ({
         ...prev,
-        category: matched.category || CATEGORY_OPTIONS[0].value
+        category: matched.category || CATEGORY_OPTIONS[0].value,
+        startAt: toLocalISOString(matched.startAt).slice(0, 10),
+        endAt: toLocalISOString(matched.endAt).slice(0, 10),
+        questionCount: matched.questionCount || ASSESSMENT_QUESTION_COUNT,
+        passingScore: matched.passingScore || 60,
+        durationMinutes: matched.durationMinutes || DEFAULT_ASSESSMENT_DURATION_MINUTES,
+        showScore: matched.showScore ?? true,
+        showAnswers: matched.showAnswers ?? false,
+        showBreakdown: matched.showBreakdown ?? true,
+        subcategoryQuotas: matched.subcategoryQuotas || {},
+        criteria: matched.criteria || { level1: 60, level2: 70, level3: 80 }
       }));
     }
   }, [selectedRoundId, rounds]);
@@ -313,15 +364,155 @@ const AdminQuizBank = () => {
 
 
 
-  const handleEdit = (question) => {
+  const handleEdit = useCallback((question) => {
     navigate('/admin/question/edit/' + question.id, { 
       state: { question, category: roundForm.category } 
     });
+  }, [navigate, roundForm.category]);
+
+  const handleDuplicate = async (question) => {
+    if (!window.confirm('ต้องการคัดลอกคำถามนี้ใช่หรือไม่?')) return;
+    
+    try {
+      const payload = {
+        text: `${question.text} (คัดลอก)`,
+        category: question.category,
+        subcategory: question.subcategory,
+        difficulty: question.difficulty,
+        options: question.options.map(o => ({
+          text: o.text,
+          is_correct: Boolean(o.isCorrect || o.is_correct)
+        }))
+      };
+
+      await apiRequest('/api/admin/questions', { method: 'POST', body: payload });
+      setQuestionMessage('คัดลอกคำถามเรียบร้อย');
+      loadQuestions();
+    } catch (error) {
+      console.error('Failed to duplicate', error);
+      setQuestionError('ไม่สามารถคัดลอกคำถามได้');
+    }
   };
 
+  const handleImportClick = () => {
+    document.getElementById('import-csv-input').click();
+  };
 
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  const handleDelete = async (questionId) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      const lines = text.split(/\r\n|\n/);
+      const newQuestions = [];
+      
+      const parseCSVLine = (str) => {
+        const arr = [];
+        let quote = false;
+        let col = '';
+        for (let i = 0; i < str.length; i++) {
+            const c = str[i];
+            if (c === '"') { 
+                if (i + 1 < str.length && str[i+1] === '"') {
+                    col += '"';
+                    i++;
+                } else {
+                    quote = !quote; 
+                }
+                continue; 
+            }
+            if (c === ',' && !quote) { arr.push(col); col = ''; continue; }
+            col += c;
+        }
+        arr.push(col);
+        return arr.map(s => s.trim());
+      };
+
+      let startIndex = 0;
+      if (lines.length > 0 && (lines[0].includes('Question') || lines[0].includes('คำถาม') || lines[0].includes('question'))) {
+        startIndex = 1;
+      }
+
+      for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const parts = parseCSVLine(line);
+        if (parts.length < 6) continue;
+
+        const qText = parts[0];
+        const opts = parts.slice(1, 5).filter(o => o);
+        const correctStr = parts[5];
+        const diffStr = parts[6] || '';
+        const subStr = parts[7] || '';
+
+        if (!qText || opts.length < 2 || !correctStr) continue;
+
+        const options = opts.map(text => ({ text, is_correct: false }));
+        
+        let correctIndex = -1;
+        if (/^[abcd]$/i.test(correctStr)) {
+            correctIndex = correctStr.toLowerCase().charCodeAt(0) - 97;
+        } else if (/^[1-4]$/.test(correctStr)) {
+            correctIndex = parseInt(correctStr) - 1;
+        }
+
+        if (correctIndex >= 0 && correctIndex < options.length) {
+            options[correctIndex].is_correct = true;
+        } else {
+             const matchIdx = options.findIndex(o => o.text.toLowerCase() === correctStr.toLowerCase());
+             if (matchIdx !== -1) options[matchIdx].is_correct = true;
+             else continue;
+        }
+
+        let difficulty = 'easy';
+        if (diffStr) {
+            const d = diffStr.toLowerCase();
+            if (d === '2' || d === 'medium' || d === 'กลาง') difficulty = 'medium';
+            if (d === '3' || d === 'hard' || d === 'ยาก') difficulty = 'hard';
+        }
+
+        newQuestions.push({
+            text: qText,
+            category: roundForm.category,
+            subcategory: subStr || null,
+            difficulty,
+            options
+        });
+      }
+
+      if (newQuestions.length === 0) {
+          alert('ไม่พบข้อมูลที่ถูกต้องในไฟล์ CSV\nรูปแบบ: คำถาม, ตัวเลือก1, ตัวเลือก2, ตัวเลือก3, ตัวเลือก4, คำตอบถูก(1-4), ความยาก(1-3), หมวดหมู่ย่อย');
+          event.target.value = '';
+          return;
+      }
+
+      if (!window.confirm(`พบคำถาม ${newQuestions.length} ข้อ ต้องการนำเข้าหรือไม่?`)) {
+          event.target.value = '';
+          return;
+      }
+
+      setQuestionsLoading(true);
+      let successCount = 0;
+      for (const q of newQuestions) {
+          try {
+              await apiRequest('/api/admin/questions', { method: 'POST', body: q });
+              successCount++;
+          } catch (err) {
+              console.error('Import error:', err);
+          }
+      }
+      setQuestionsLoading(false);
+      alert(`นำเข้าสำเร็จ ${successCount} จาก ${newQuestions.length} ข้อ`);
+      loadQuestions();
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDelete = useCallback(async (questionId) => {
     setQuestionError('');
     setQuestionMessage('');
     if (!window.confirm('ต้องการลบคำถามนี้?')) {
@@ -340,7 +531,7 @@ const AdminQuizBank = () => {
     } finally {
       setDeletingQuestionId(null);
     }
-  };
+  }, [loadQuestions]);
 
 
 
@@ -381,7 +572,14 @@ const AdminQuizBank = () => {
       questionCount: ASSESSMENT_QUESTION_COUNT,
       startAt: null,
       endAt: null,
-      frequencyMonths: null
+      passingScore: 60,
+      durationMinutes: DEFAULT_ASSESSMENT_DURATION_MINUTES,
+      showScore: true,
+      showAnswers: false,
+      showBreakdown: true,
+      subcategoryQuotas: {},
+      frequencyMonths: null,
+      criteria: { level1: 60, level2: 70, level3: 80 }
     };
 
     setRoundSaving(true);
@@ -392,9 +590,6 @@ const AdminQuizBank = () => {
         return;
       }
       await loadRounds(createdId, { keepSelection: true });
-      if (expectedSeq !== categorySelectSeqRef.current) {
-        return;
-      }
       if (createdId) {
         setSelectedRoundId(createdId);
       }
@@ -420,7 +615,17 @@ const AdminQuizBank = () => {
 
     setRoundForm(prev => ({
       ...prev,
-      category: value
+      category: value,
+      startAt: '',
+      endAt: '',
+      questionCount: ASSESSMENT_QUESTION_COUNT,
+      passingScore: 60,
+      durationMinutes: DEFAULT_ASSESSMENT_DURATION_MINUTES,
+      showScore: true,
+      showAnswers: false,
+      showBreakdown: true,
+      subcategoryQuotas: {},
+      criteria: { level1: 60, level2: 70, level3: 80 }
     }));
 
     let availableRounds = rounds;
@@ -444,6 +649,66 @@ const AdminQuizBank = () => {
     }
   }, [rounds, roundsInitialized, roundsLoading, roundSaving, createRoundForCategory, loadRounds]);
 
+  const handleSavePreset = () => {
+    const name = prompt('ตั้งชื่อสูตรการสุ่ม (เช่น เน้นข้อง่าย):');
+    if (!name || !name.trim()) return;
+    
+    const category = roundForm.category;
+    const newPreset = { name: name.trim(), quotas: roundForm.subcategoryQuotas };
+    
+    setQuotaPresets(prev => {
+      const catPresets = prev[category] || [];
+      const existingIdx = catPresets.findIndex(p => p.name === newPreset.name);
+      let nextCatPresets;
+      if (existingIdx >= 0) {
+        if (!window.confirm(`ชื่อสูตร "${newPreset.name}" มีอยู่แล้ว ต้องการบันทึกทับหรือไม่?`)) return prev;
+        nextCatPresets = [...catPresets];
+        nextCatPresets[existingIdx] = newPreset;
+      } else {
+        nextCatPresets = [...catPresets, newPreset];
+      }
+      
+      const nextState = { ...prev, [category]: nextCatPresets };
+      localStorage.setItem('admin_quota_presets', JSON.stringify(nextState));
+      return nextState;
+    });
+    setSelectedPresetName(name.trim());
+  };
+
+  const handleLoadPreset = () => {
+    const category = roundForm.category;
+    const preset = (quotaPresets[category] || []).find(p => p.name === selectedPresetName);
+    if (!preset || !preset.quotas) return;
+
+    let newTotal = 0;
+    Object.values(preset.quotas).forEach(q => {
+       if (typeof q === 'object') {
+         newTotal += (q.easy || 0) + (q.medium || 0) + (q.hard || 0);
+       } else if (typeof q === 'number') {
+         newTotal += q;
+       }
+    });
+
+    setRoundForm(prev => ({
+      ...prev,
+      subcategoryQuotas: preset.quotas,
+      questionCount: newTotal > 0 ? newTotal : prev.questionCount
+    }));
+  };
+
+  const handleDeletePreset = (name) => {
+    if (!window.confirm(`ต้องการลบสูตร "${name}" หรือไม่?`)) return;
+    const category = roundForm.category;
+    setQuotaPresets(prev => {
+      const catPresets = prev[category] || [];
+      const nextCatPresets = catPresets.filter(p => p.name !== name);
+      const nextState = { ...prev, [category]: nextCatPresets };
+      localStorage.setItem('admin_quota_presets', JSON.stringify(nextState));
+      return nextState;
+    });
+    if (selectedPresetName === name) setSelectedPresetName('');
+  };
+
   const handleRoundSubmit = async (event) => {
     event.preventDefault();
     setRoundError('');
@@ -452,6 +717,45 @@ const AdminQuizBank = () => {
     if (!roundForm.category) {
       setRoundError('กรุณาเลือกประเภทช่าง');
       return;
+    }
+
+    const cLevel1 = Number(roundForm.criteria?.level1 || 60);
+    const cLevel2 = Number(roundForm.criteria?.level2 || 70);
+    const cLevel3 = Number(roundForm.criteria?.level3 || 80);
+
+    if (cLevel1 < 0 || cLevel2 < 0 || cLevel3 < 0) {
+      setRoundError('เกณฑ์คะแนนต้องไม่เป็นค่าติดลบ');
+      return;
+    }
+
+    if (cLevel1 > 100 || cLevel2 > 100 || cLevel3 > 100) {
+      setRoundError('เกณฑ์คะแนนต้องไม่เกิน 100%');
+      return;
+    }
+
+    if (cLevel1 >= cLevel2) {
+      setRoundError('เกณฑ์ระดับ 1 ต้องน้อยกว่าระดับ 2');
+      return;
+    }
+    if (cLevel2 >= cLevel3) {
+      setRoundError('เกณฑ์ระดับ 2 ต้องน้อยกว่าระดับ 3');
+      return;
+    }
+
+    let finalQuestionCount = Number(roundForm.questionCount);
+    let calculatedTotal = 0;
+    const quotas = roundForm.subcategoryQuotas || {};
+    Object.values(quotas).forEach(q => {
+      if (typeof q === 'object') {
+        calculatedTotal += (q.easy || 0) + (q.medium || 0) + (q.hard || 0);
+      }
+    });
+
+    if (calculatedTotal > 0 && calculatedTotal !== finalQuestionCount) {
+       if (!window.confirm(`ยอดรวมข้อสอบที่เลือก (${calculatedTotal} ข้อ) ไม่ตรงกับจำนวนที่ตั้งเป้าไว้ (${finalQuestionCount} ข้อ)\n\nต้องการปรับจำนวนเป้าหมายเป็น ${calculatedTotal} ข้อ และบันทึกหรือไม่?`)) {
+         return;
+       }
+       finalQuestionCount = calculatedTotal;
     }
 
     const existingTitle = selectedRound?.title?.trim();
@@ -463,10 +767,21 @@ const AdminQuizBank = () => {
       category: roundForm.category,
       title: resolvedTitle,
       description: '',
-      questionCount: ASSESSMENT_QUESTION_COUNT,
-      startAt: null,
-      endAt: null,
-      frequencyMonths: null
+      questionCount: finalQuestionCount,
+      startAt: roundForm.startAt ? new Date(roundForm.startAt).toISOString() : null,
+      endAt: roundForm.endAt ? new Date(roundForm.endAt).toISOString() : null,
+      frequencyMonths: null,
+      passingScore: Number(roundForm.criteria?.level1 || 60),
+      durationMinutes: Number(roundForm.durationMinutes),
+      showScore: roundForm.showScore,
+      showAnswers: roundForm.showAnswers,
+      showBreakdown: roundForm.showBreakdown,
+      subcategoryQuotas: roundForm.subcategoryQuotas,
+      criteria: {
+        level1: Number(roundForm.criteria?.level1 || 60),
+        level2: Number(roundForm.criteria?.level2 || 70),
+        level3: Number(roundForm.criteria?.level3 || 80)
+      }
     };
 
     setRoundSaving(true);
@@ -486,55 +801,6 @@ const AdminQuizBank = () => {
     }
   };
 
-  const handleSettingsSubmit = async (event) => {
-    event.preventDefault();
-    setSettingsError('');
-    setSettingsMessage('');
-
-    const questionCountValue = ASSESSMENT_QUESTION_COUNT;
-    let frequencyValue = null;
-    if (settings.frequencyMonths) {
-      frequencyValue = Number.parseInt(settings.frequencyMonths, 10);
-      if (!Number.isFinite(frequencyValue) || frequencyValue < 1) {
-        setSettingsError('ความถี่การสอบต้องเป็นจำนวนเดือนตั้งแต่ 1 เดือนขึ้นไป');
-        return;
-      }
-    }
-
-    const startDateTime = buildLocalDateTime(settings.startDate, settings.startTime);
-    const endDateTime = buildLocalDateTime(settings.endDate, settings.endTime);
-
-    const payload = {
-      questionCount: questionCountValue,
-      startAt: toISOStringOrNull(startDateTime),
-      endAt: toISOStringOrNull(endDateTime),
-      frequencyMonths: frequencyValue
-    };
-
-    setSettingsSaving(true);
-    try {
-      const updated = await apiRequest('/api/admin/assessments/settings', { method: 'PUT', body: payload });
-      if (updated) {
-        setSettings({
-          questionCount: String(ASSESSMENT_QUESTION_COUNT),
-          startDate: extractDatePart(updated.startAt),
-          startTime: extractTimePart(updated.startAt),
-          endDate: extractDatePart(updated.endAt),
-          endTime: extractTimePart(updated.endAt),
-          frequencyMonths: updated.frequencyMonths ? String(updated.frequencyMonths) : ''
-        });
-      }
-      setSettingsMessage('บันทึกการตั้งค่าเรียบร้อย');
-    } catch (error) {
-      console.error('Failed to update assessment settings', error);
-      const messageKey = error?.data?.message;
-      const friendly = SETTINGS_ERROR_MESSAGES[messageKey] || error?.message || 'ไม่สามารถบันทึกการตั้งค่าได้';
-      setSettingsError(friendly);
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
-
   const selectedRound = useMemo(() => {
     if (!selectedRoundId || selectedRoundId === ROUND_NEW_VALUE) {
       return null;
@@ -548,29 +814,145 @@ const AdminQuizBank = () => {
     if (!selectedCategory) {
       return [];
     }
+    
+    // ถ้าเป็นหมวดโครงสร้าง ให้ใช้ข้อมูลจาก question_Structural
+    if (selectedCategory === 'structure') {
+      const localStructureQuestions = questions.filter(q => q.category === 'structure');
+      return [...structuralQuestions, ...localStructureQuestions];
+    }
+    
     return questions.filter(question => question.category === selectedCategory);
-  }, [questions, selectedCategory]);
+  }, [questions, structuralQuestions, selectedCategory]);
+
+  const currentSubcategoryStats = useMemo(() => {
+    const stats = {};
+    const options = subcategoryOptions[roundForm.category] || [];
+    options.forEach(opt => {
+      const subQuestions = questionsForSelectedCategory.filter(q => q.subcategory === opt.value);
+      stats[opt.value] = {
+        total: subQuestions.length,
+        easy: subQuestions.filter(q => q.difficulty === 'easy').length,
+        medium: subQuestions.filter(q => q.difficulty === 'medium').length,
+        hard: subQuestions.filter(q => q.difficulty === 'hard').length
+      };
+    });
+    return stats;
+  }, [questionsForSelectedCategory, subcategoryOptions, roundForm.category]);
+
+  const categoryStats = useMemo(() => {
+    const total = questionsForSelectedCategory.length;
+    const easy = questionsForSelectedCategory.filter(q => q.difficulty === 'easy').length;
+    const medium = questionsForSelectedCategory.filter(q => q.difficulty === 'medium').length;
+    const hard = questionsForSelectedCategory.filter(q => q.difficulty === 'hard').length;
+    return { total, easy, medium, hard };
+  }, [questionsForSelectedCategory]);
+
+  const quotaStats = useMemo(() => {
+    let easy = 0, medium = 0, hard = 0;
+    const quotas = roundForm.subcategoryQuotas || {};
+    Object.values(quotas).forEach(q => {
+      if (typeof q === 'object') {
+        easy += (q.easy || 0);
+        medium += (q.medium || 0);
+        hard += (q.hard || 0);
+      }
+    });
+    const total = easy + medium + hard;
+    return { easy, medium, hard, total };
+  }, [roundForm.subcategoryQuotas]);
+
+  const handleAutoFill = useCallback(() => {
+    const targetTotal = roundForm.questionCount;
+    let currentTotal = 0;
+    const newQuotas = JSON.parse(JSON.stringify(roundForm.subcategoryQuotas || {}));
+    const options = subcategoryOptions[roundForm.category] || [];
+    
+    options.forEach(opt => {
+      if (!newQuotas[opt.value] || typeof newQuotas[opt.value] !== 'object') {
+        newQuotas[opt.value] = { easy: 0, medium: 0, hard: 0 };
+      }
+      currentTotal += (newQuotas[opt.value].easy || 0) + (newQuotas[opt.value].medium || 0) + (newQuotas[opt.value].hard || 0);
+    });
+
+    let needed = targetTotal - currentTotal;
+    if (needed <= 0) return;
+
+    const availableSlots = [];
+    options.forEach(opt => {
+      const stats = currentSubcategoryStats[opt.value] || { easy: 0, medium: 0, hard: 0 };
+      ['easy', 'medium', 'hard'].forEach(diff => {
+        const current = newQuotas[opt.value][diff] || 0;
+        const max = stats[diff] || 0;
+        if (current < max) {
+          availableSlots.push({ sub: opt.value, diff, remaining: max - current });
+        }
+      });
+    });
+
+    if (availableSlots.length === 0) return;
+
+    let idx = 0;
+    while (needed > 0 && availableSlots.length > 0) {
+      const slot = availableSlots[idx % availableSlots.length];
+      if (slot.remaining > 0) {
+        newQuotas[slot.sub][slot.diff]++;
+        slot.remaining--;
+        needed--;
+        if (slot.remaining === 0) {
+           availableSlots.splice(idx % availableSlots.length, 1);
+           if (availableSlots.length === 0) break;
+           continue;
+        }
+      }
+      idx++;
+    }
+    
+    setRoundForm(prev => ({ ...prev, subcategoryQuotas: newQuotas }));
+  }, [roundForm.questionCount, roundForm.subcategoryQuotas, roundForm.category, subcategoryOptions, currentSubcategoryStats]);
 
   useEffect(() => {
     setTableCategoryFilter(TABLE_FILTER_ALL);
+    setTableSubcategoryFilter(TABLE_FILTER_ALL);
     setTableDifficultyFilter(TABLE_FILTER_ALL);
+    setCurrentPage(1);
   }, [selectedCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [tableCategoryFilter, tableSubcategoryFilter, tableDifficultyFilter]);
 
   const displayedQuestions = useMemo(() => {
     let filtered = questionsForSelectedCategory;
 
+    if (searchTerm.trim()) {
+      const lower = searchTerm.toLowerCase();
+      filtered = filtered.filter(question => 
+        (question.text || '').toLowerCase().includes(lower)
+      );
+    }
+
     if (tableCategoryFilter !== TABLE_FILTER_ALL) {
       filtered = filtered.filter(question => question.category === tableCategoryFilter);
+    }
+
+    if (tableSubcategoryFilter !== TABLE_FILTER_ALL) {
+      filtered = filtered.filter(question => question.subcategory === tableSubcategoryFilter);
     }
 
     if (tableDifficultyFilter !== TABLE_FILTER_ALL) {
       filtered = filtered.filter(question => question.difficulty === tableDifficultyFilter);
     }
 
-    return filtered.slice(0, ASSESSMENT_QUESTION_COUNT);
-  }, [questionsForSelectedCategory, tableCategoryFilter, tableDifficultyFilter]);
+    return filtered;
+  }, [questionsForSelectedCategory, tableCategoryFilter, tableSubcategoryFilter, tableDifficultyFilter, searchTerm]);
 
-  const missingQuestionCount = Math.max(0, ASSESSMENT_QUESTION_COUNT - questionsForSelectedCategory.length);
+  const totalPages = Math.ceil(displayedQuestions.length / ITEMS_PER_PAGE);
+  const paginatedQuestions = displayedQuestions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const missingQuestionCount = Math.max(0, roundForm.questionCount - questionsForSelectedCategory.length);
 
   const activeCategoryValue = roundForm.category || selectedRound?.category;
   const roundDisplayTitle = (selectedRound?.title || '').trim();
@@ -585,7 +967,7 @@ const AdminQuizBank = () => {
     ? CATEGORY_LABELS[roundForm.category].replace(/^\d+\.\s*/, '')
     : '';
   const roundHeadingBase = roundDisplayTitleNormalized || roundDisplayCategory || 'ข้อสอบ';
-  const roundHeadingSuffix = `${ASSESSMENT_QUESTION_COUNT} ข้อ`;
+  const roundHeadingSuffix = `${questionsForSelectedCategory.length} ข้อ`;
 
   const handleStartCreate = useCallback(() => {
     navigate('/admin/question/add', { 
@@ -597,95 +979,11 @@ const AdminQuizBank = () => {
     <div className="admin-quiz-bank">
       <div className="quiz-content">
         <div className="quiz-header">
-          <h2>คลังข้อสอบ</h2>
-        </div>
-
-        <div className="quiz-form-card" style={{ marginBottom: '2rem' }}>
-          <h3>ตั้งค่าการสอบประเมิน</h3>
-          <form onSubmit={handleSettingsSubmit} className="quiz-form">
-            <div className="form-grid form-grid--settings">
-              <div className="form-group">
-                <label htmlFor="setting-question-count">จำนวนคำถามต่อรอบ *</label>
-                <input
-                  id="setting-question-count"
-                  type="number"
-                  min="1"
-                  value={String(ASSESSMENT_QUESTION_COUNT)}
-                  disabled
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="setting-frequency-months">ความถี่การสอบ (เดือน)</label>
-                <input
-                  id="setting-frequency-months"
-                  type="number"
-                  min="1"
-                  placeholder="เช่น 2 หมายถึงทุก 2 เดือน"
-                  value={settings.frequencyMonths}
-                  onChange={(event) => setSettings(prev => ({ ...prev, frequencyMonths: event.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="form-group form-group--wide">
-              <label htmlFor="setting-date-range">ช่วงเวลาสอบ</label>
-              <div className="date-range-grid" id="setting-date-range">
-                <div className="date-range-item">
-                  <span className="date-range-caption">เริ่ม</span>
-                  <div className="datetime-field">
-                    <ThaiDatePicker
-                      id="setting-start-date"
-                      value={settings.startDate}
-                      onChange={(date) => setSettings(prev => ({ ...prev, startDate: date }))}
-                      placeholder="เลือกวันที่ (พ.ศ.)"
-                    />
-                    <div className="datetime-field-time">
-                      <input
-                        id="setting-start-time"
-                        type="time"
-                        value={settings.startTime}
-                        onChange={(event) => setSettings(prev => ({ ...prev, startTime: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="date-range-arrow" aria-hidden="true">→</div>
-                <div className="date-range-item">
-                  <span className="date-range-caption">สิ้นสุด</span>
-                  <div className="datetime-field">
-                    <ThaiDatePicker
-                      id="setting-end-date"
-                      value={settings.endDate}
-                      onChange={(date) => setSettings(prev => ({ ...prev, endDate: date }))}
-                      placeholder="เลือกวันที่ (พ.ศ.)"
-                    />
-                    <div className="datetime-field-time">
-                      <input
-                        id="setting-end-time"
-                        type="time"
-                        value={settings.endTime}
-                        onChange={(event) => setSettings(prev => ({ ...prev, endTime: event.target.value }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <span className="form-hint">กำหนดวันและเวลาเปิด-ปิดการสอบในแถวเดียวเพื่อดูง่ายขึ้น</span>
-            </div>
-
-            {settingsError && <div className="form-feedback error">{settingsError}</div>}
-            {settingsMessage && <div className="form-feedback success">{settingsMessage}</div>}
-
-            <div className="form-actions">
-              <button type="submit" className="pill primary" disabled={settingsSaving}>
-                {settingsSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
-              </button>
-            </div>
-          </form>
+          <h2>จัดการคำถาม</h2>
         </div>
 
         <div className="quiz-form-card quiz-round-card">
-          <h3>จัดการข้อสอบ</h3>
+          <h3>โครงสร้างข้อสอบ</h3>
           <form onSubmit={handleRoundSubmit} className="quiz-form quiz-form--round">
             <div className="form-grid form-grid--round">
               <div className="form-group form-group--compact">
@@ -711,31 +1009,275 @@ const AdminQuizBank = () => {
                 </div>
               </div>
 
-              {roundForm.category && (
-                <div className="form-group form-group--wide">
-                  <div className="round-summary">
-                    <span>
-                      {roundSelectionTouched
-                        ? summaryCategoryLabel
-                          ? `กิจกรรมที่เลือก: ${summaryCategoryLabel}`
-                          : 'ยังไม่ได้เลือกกิจกรรม'
-                        : 'ยังไม่ได้เลือกกิจกรรม'}
-                    </span>
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', width: '100%', marginTop: '1rem', alignItems: 'start' }}>
+                <div style={{ display: 'flex', gap: '1rem', gridColumn: 'span 2' }}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label htmlFor="round-start-at">วันเริ่มสอบ</label>
+                    <ThaiDatePicker
+                      value={roundForm.startAt}
+                      onChange={(val) => setRoundForm({ ...roundForm, startAt: val })}
+                    />
                   </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label htmlFor="round-end-at">วันหมดเวลาสอบ</label>
+                    <ThaiDatePicker
+                      value={roundForm.endAt}
+                      onChange={(val) => setRoundForm({ ...roundForm, endAt: val })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <hr style={{ margin: '0.5rem 0', border: 0, borderTop: '1px solid #eee' }} />
+                  <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem', color: '#444' }}>เงื่อนไขการสอบ</h4>
+                </div>
+
+                {subcategoryOptions[roundForm.category] && subcategoryOptions[roundForm.category].length > 0 && (
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <label style={{ display: 'block', marginBottom: 0 }}>กำหนดจำนวนข้อสอบรายหมวดหมู่ย่อย (แยกตามความยาก)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {quotaPresets[roundForm.category] && quotaPresets[roundForm.category].length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <select 
+                              value={selectedPresetName} 
+                              onChange={(e) => setSelectedPresetName(e.target.value)}
+                              style={{ padding: '0.25rem', borderRadius: '4px', border: '1px solid #ddd', fontSize: '0.8rem' }}
+                            >
+                              <option value="">-- เลือกสูตร --</option>
+                              {quotaPresets[roundForm.category].map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                            </select>
+                            <button type="button" className="pill secondary" onClick={handleLoadPreset} disabled={!selectedPresetName} style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', height: 'auto' }}>
+                              ใช้สูตร
+                            </button>
+                            <button type="button" className="btn-icon" onClick={() => handleDeletePreset(selectedPresetName)} disabled={!selectedPresetName} title="ลบสูตร" style={{ width: '24px', height: '24px', minWidth: 'auto', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <i className='bx bx-trash'></i>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {categoryStats.total === 0 ? (
+                      <div style={{ padding: '1.5rem', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #e2e8f0', color: '#718096', textAlign: 'center', fontSize: '0.9rem' }}>
+                        <i className='bx bx-info-circle' style={{ marginRight: '0.5rem', verticalAlign: 'middle', fontSize: '1.2em' }}></i>
+                        ยังไม่มีข้อสอบในคลังสำหรับหมวดหมู่นี้ กรุณาเพิ่มข้อสอบก่อนกำหนดสัดส่วน
+                      </div>
+                    ) : (
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', background: '#f8f9fa', padding: '0.75rem', borderRadius: '8px', border: '1px solid #eee' }}>
+                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                      {subcategoryOptions[roundForm.category].map(option => {
+                        const stats = currentSubcategoryStats[option.value] || { total: 0, easy: 0, medium: 0, hard: 0 };
+                        if (stats.total === 0) return null;
+                        const quota = roundForm.subcategoryQuotas[option.value] || { easy: 0, medium: 0, hard: 0 };
+                        const safeQuota = typeof quota === 'number' ? { easy: 0, medium: 0, hard: 0 } : quota;
+
+                        const handleQuotaChange = (difficulty, rawVal) => {
+                          // คำนวณยอดรวมปัจจุบันของช่องอื่นๆ เพื่อหาโควต้าที่เหลือ (จำกัด 60 ข้อ)
+                          let currentTotalOthers = 0;
+                          Object.entries(roundForm.subcategoryQuotas).forEach(([catKey, catQuota]) => {
+                             const q = (typeof catQuota === 'number') ? { easy: 0, medium: 0, hard: 0 } : (catQuota || { easy: 0, medium: 0, hard: 0 });
+                             if (catKey === option.value) {
+                                 ['easy', 'medium', 'hard'].forEach(d => {
+                                     if (d !== difficulty) currentTotalOthers += Number(q[d] || 0);
+                                 });
+                             } else {
+                                 currentTotalOthers += Number(q.easy || 0) + Number(q.medium || 0) + Number(q.hard || 0);
+                             }
+                          });
+
+                          const globalLimit = 60;
+                          const maxAllowed = Math.max(0, globalLimit - currentTotalOthers);
+                          const maxAvailable = stats[difficulty];
+                          const effectiveMax = Math.min(maxAvailable, maxAllowed);
+
+                          let finalVal;
+                          if (rawVal === '') {
+                            finalVal = '';
+                          } else {
+                            const parsed = parseInt(rawVal, 10);
+                            finalVal = isNaN(parsed) ? 0 : Math.max(0, Math.min(parsed, effectiveMax));
+                          }
+
+                          const newSubQuota = { ...safeQuota, [difficulty]: finalVal };
+                          
+                          const newQuotas = { ...roundForm.subcategoryQuotas, [option.value]: newSubQuota };
+                          
+                          let newTotal = 0;
+                          Object.values(newQuotas).forEach(q => {
+                            if (typeof q === 'object') {
+                              newTotal += Number(q.easy || 0) + Number(q.medium || 0) + Number(q.hard || 0);
+                            } else if (typeof q === 'number') {
+                              newTotal += q;
+                            }
+                          });
+                          
+                          setRoundForm(prev => ({
+                            ...prev,
+                            subcategoryQuotas: newQuotas,
+                            questionCount: newTotal > 0 ? newTotal : prev.questionCount
+                          }));
+                        };
+
+                        return (
+                          <div key={option.value} style={{ background: '#fff', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                            <div style={{ fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#2d3748' }}>{option.label}</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                              {['easy', 'medium', 'hard'].map(diff => (
+                                <div key={diff}>
+                                  <label style={{ fontSize: '0.75rem', color: '#666', display: 'block', marginBottom: '2px' }}>
+                                    {diff === 'easy' ? 'ง่าย' : diff === 'medium' ? 'กลาง' : 'ยาก'} (มี {stats[diff]})
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={stats[diff]}
+                                    value={safeQuota[diff] ?? 0}
+                                    onChange={(e) => handleQuotaChange(diff, e.target.value)}
+                                    style={{ width: '100%', padding: '0.25rem', fontSize: '0.85rem', border: '1px solid #cbd5e0', borderRadius: '4px' }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#4a5568', textAlign: 'right' }}>
+                              รวม: {(safeQuota.easy || 0) + (safeQuota.medium || 0) + (safeQuota.hard || 0)} / {stats.total} ข้อ
+                            </div>
+                          </div>
+                        );
+                      })}
+                      </div>
+                      <div style={{ width: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#fff', padding: '0.75rem', borderRadius: '6px', border: '1px solid #e2e8f0', alignSelf: 'flex-start' }}>
+                        <div 
+                          title={`รวมทั้งหมด: ${quotaStats.total} ข้อ\n- ง่าย: ${quotaStats.easy} ข้อ\n- กลาง: ${quotaStats.medium} ข้อ\n- ยาก: ${quotaStats.hard} ข้อ`}
+                          style={{
+                          width: '180px', height: '180px', borderRadius: '50%', marginBottom: '0.75rem', cursor: 'help',
+                          background: `conic-gradient(#48bb78 0% ${quotaStats.total ? (quotaStats.easy/quotaStats.total)*100 : 0}%, #ecc94b ${quotaStats.total ? (quotaStats.easy/quotaStats.total)*100 : 0}% ${quotaStats.total ? ((quotaStats.easy+quotaStats.medium)/quotaStats.total)*100 : 0}%, #f56565 ${quotaStats.total ? ((quotaStats.easy+quotaStats.medium)/quotaStats.total)*100 : 0}% 100%)`
+                        }} />
+                        <div style={{ fontSize: '0.8rem', width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}><span style={{display:'flex', alignItems:'center'}}><span style={{width:8,height:8,background:'#48bb78',borderRadius:'50%',marginRight:4}}/>ง่าย</span> <span>{quotaStats.easy} ({quotaStats.total ? Math.round((quotaStats.easy/quotaStats.total)*100) : 0}%)</span></div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}><span style={{display:'flex', alignItems:'center'}}><span style={{width:8,height:8,background:'#ecc94b',borderRadius:'50%',marginRight:4}}/>กลาง</span> <span>{quotaStats.medium} ({quotaStats.total ? Math.round((quotaStats.medium/quotaStats.total)*100) : 0}%)</span></div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{display:'flex', alignItems:'center'}}><span style={{width:8,height:8,background:'#f56565',borderRadius:'50%',marginRight:4}}/>ยาก</span> <span>{quotaStats.hard} ({quotaStats.total ? Math.round((quotaStats.hard/quotaStats.total)*100) : 0}%)</span></div>
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #eee', textAlign: 'center', fontWeight: 'bold' }}>รวม {quotaStats.total} / 60 ข้อ</div>
+                        </div>
+                      </div>
+                    </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label htmlFor="round-question-count">จำนวนข้อสอบ (ข้อ)</label>
+                  <input
+                    id="round-question-count"
+                    type="number"
+                    min={1}
+                    value={roundForm.questionCount}
+                    onChange={(e) => setRoundForm({ ...roundForm, questionCount: Number(e.target.value) })}
+                  />
+                  <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                    มีในคลัง: {categoryStats.total} (ง่าย {categoryStats.easy}, กลาง {categoryStats.medium}, ยาก {categoryStats.hard})
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label style={{ marginBottom: 0 }}>เกณฑ์การวัดระดับ (%)</label>
+                    <button
+                      type="button"
+                      onClick={() => setRoundForm(prev => ({ ...prev, criteria: { level1: 60, level2: 70, level3: 80 } }))}
+                      style={{ background: 'none', border: 'none', color: '#3182ce', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                    >
+                      คืนค่าเริ่มต้น
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '1rem', background: '#f8f9fa', padding: '1rem', borderRadius: '6px', border: '1px solid #eee' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.8rem', color: '#666', marginBottom: '4px', display: 'block' }}>ระดับ 1 (พื้นฐาน)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="1"
+                        value={roundForm.criteria?.level1 ?? ''}
+                        onChange={(e) => setRoundForm({
+                          ...roundForm,
+                          criteria: { ...roundForm.criteria, level1: e.target.value === '' ? '' : Number(e.target.value) }
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.8rem', color: '#666', marginBottom: '4px', display: 'block' }}>ระดับ 2 (กลาง)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="1"
+                        value={roundForm.criteria?.level2 ?? ''}
+                        onChange={(e) => setRoundForm({
+                          ...roundForm,
+                          criteria: { ...roundForm.criteria, level2: e.target.value === '' ? '' : Number(e.target.value) }
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.8rem', color: '#666', marginBottom: '4px', display: 'block' }}>ระดับ 3 (สูง)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="1"
+                        value={roundForm.criteria?.level3 ?? ''}
+                        onChange={(e) => setRoundForm({
+                          ...roundForm,
+                          criteria: { ...roundForm.criteria, level3: e.target.value === '' ? '' : Number(e.target.value) }
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="round-duration">เวลาทำข้อสอบ (นาที)</label>
+                  <input
+                    id="round-duration"
+                    type="number"
+                    min={1}
+                    value={roundForm.durationMinutes}
+                    onChange={(e) => setRoundForm({ ...roundForm, durationMinutes: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '0.85rem', color: '#718096' }}>
+                  {selectedRoundId !== ROUND_NEW_VALUE && selectedRound && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className='bx bx-history'></i>
+                      <span>แก้ไขล่าสุด: {selectedRound.updatedAt ? new Date(selectedRound.updatedAt).toLocaleString('th-TH') : '-'} {selectedRound.updatedBy ? `โดย ${selectedRound.updatedBy}` : ''}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowHistoryModal(true)}
+                        style={{ background: 'none', border: 'none', color: '#4299e1', cursor: 'pointer', fontSize: 'inherit', marginLeft: '4px', textDecoration: 'underline', padding: 0 }}
+                      >
+                        ดูประวัติย้อนหลัง
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button type="submit" className="pill primary" disabled={roundSaving} style={{ minWidth: '160px', justifyContent: 'center' }}>
+                  {roundSaving ? 'กำลังบันทึก...' : 'บันทึกโครงสร้างข้อสอบ'}
+                </button>
+              </div>
+
+              {(roundMessage || roundError) && (
+                <div className="form-feedback-stack" style={{ marginTop: '1rem' }}>
+                  {roundError && <div className="form-feedback error">{roundError}</div>}
+                  {roundMessage && <div className="form-feedback success">{roundMessage}</div>}
                 </div>
               )}
             </div>
-
-            {roundForm.category && (
-              <>
-                {roundsLoading && <div className="form-feedback">กำลังโหลดกิจกรรมข้อสอบ...</div>}
-                {roundSelectionTouched && roundsError && <div className="form-feedback error">{roundsError}</div>}
-                {roundSelectionTouched && roundError && <div className="form-feedback error">{roundError}</div>}
-                {roundMessage && <div className="form-feedback success">{roundMessage}</div>}
-
-                <div className="form-actions" aria-hidden="true" />
-              </>
-            )}
           </form>
         </div>
 
@@ -751,6 +1293,19 @@ const AdminQuizBank = () => {
                 </p>
               </div>
               <div className="quiz-table-action-box">
+                <button type="button" className="pill secondary" onClick={handleRefresh} style={{ marginRight: '0.5rem' }} disabled={questionsLoading}>
+                  <i className='bx bx-refresh' style={{ marginRight: '4px' }}></i> รีเฟรช
+                </button>
+                <input
+                  type="file"
+                  id="import-csv-input"
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
+                <button type="button" className="pill secondary" onClick={handleImportClick} style={{ marginRight: '0.5rem' }}>
+                  <i className='bx bx-import' style={{ marginRight: '4px' }}></i> นำเข้า CSV
+                </button>
                 <button type="button" className="pill primary" onClick={handleStartCreate}>
                   + เพิ่มคำถามใหม่
                 </button>
@@ -758,19 +1313,46 @@ const AdminQuizBank = () => {
             </div>
 
             <div className="quiz-table-controls">
-              {(questionError || questionMessage) && (
-                <div className="quiz-table-feedback">
-                  {questionError && <div className="form-feedback error">{questionError}</div>}
-                  {questionMessage && <div className="form-feedback success">{questionMessage}</div>}
+              <div className="table-filters" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group" style={{ flex: 1, minWidth: '200px', width: 'auto', marginBottom: 0 }}>
+                  <label htmlFor="table-search" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>ค้นหา</label>
+                  <div style={{ position: 'relative' }}>
+                    <i className='bx bx-search' style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#999' }}></i>
+                    <input
+                      id="table-search"
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="ค้นหาคำถาม..."
+                      style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.2rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    />
+                  </div>
                 </div>
-              )}
-              <div className="quiz-table-filters">
-                <div className="filter-control">
-                  <label htmlFor="table-difficulty-filter">ระดับความยาก</label>
+
+                {subcategoryOptions[roundForm.category] && subcategoryOptions[roundForm.category].length > 0 && (
+                  <div className="form-group" style={{ minWidth: '200px', width: 'auto', marginBottom: 0 }}>
+                    <label htmlFor="table-subcategory-filter" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>กรองตามหมวดหมู่</label>
+                    <select
+                      id="table-subcategory-filter"
+                      value={tableSubcategoryFilter}
+                      onChange={(event) => setTableSubcategoryFilter(event.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+                    >
+                      <option value={TABLE_FILTER_ALL}>ทุกหมวดหมู่</option>
+                      {subcategoryOptions[roundForm.category].map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ minWidth: '150px', width: 'auto', marginBottom: 0 }}>
+                  <label htmlFor="table-difficulty-filter" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: '#666' }}>กรองตามระดับความยาก</label>
                   <select
                     id="table-difficulty-filter"
                     value={tableDifficultyFilter}
                     onChange={(event) => setTableDifficultyFilter(event.target.value)}
+                    style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
                     <option value={TABLE_FILTER_ALL}>ทุกระดับ</option>
                     {DIFFICULTY_OPTIONS.map(option => (
@@ -779,6 +1361,13 @@ const AdminQuizBank = () => {
                   </select>
                 </div>
               </div>
+
+              {(questionError || questionMessage) && (
+                <div className="quiz-table-feedback">
+                  {questionError && <div className="form-feedback error">{questionError}</div>}
+                  {questionMessage && <div className="form-feedback success">{questionMessage}</div>}
+                </div>
+              )}
             </div>
 
             {questionsLoading && (
@@ -798,6 +1387,9 @@ const AdminQuizBank = () => {
                   <thead>
                     <tr>
                       <th>ลำดับ</th>
+                      {subcategoryOptions[roundForm.category] && subcategoryOptions[roundForm.category].length > 0 && (
+                        <th>หมวดหมู่</th>
+                      )}
                       <th>ระดับ</th>
                       <th>คำถาม</th>
                       <th>ตัวเลือก</th>
@@ -806,34 +1398,65 @@ const AdminQuizBank = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayedQuestions.map((question, index) => {
+                    {paginatedQuestions.map((question, index) => {
                       const options = Array.isArray(question.options) ? question.options : [];
                       const correctOptions = options.filter(option => Boolean(option?.isCorrect ?? option?.is_correct));
-                      const correctText = correctOptions.length
-                        ? correctOptions.map(option => option.text).join(', ')
-                        : '-';
+                      
+                      // แสดงคำตอบที่ถูกต้อง
+                      let correctText = '-';
+                      if (question._source === 'question_Structural' && options.length > 0) {
+                        // สำหรับ question_Structural แสดงตัวอักษร A, B, C, D
+                        const correctIndex = options.findIndex(opt => opt.isCorrect || opt.is_correct);
+                        if (correctIndex >= 0) {
+                          correctText = String.fromCharCode(65 + correctIndex); // 65 = 'A'
+                        }
+                      } else if (correctOptions.length > 0) {
+                        correctText = correctOptions.map(option => option.text).join(', ');
+                      }
+                      
+                      const isExternal = question._source === 'question_Structural';
                       const difficultyLabel = DIFFICULTY_LABELS[question.difficulty] || '-';
+                      const subcategoryLabel = question.subcategory && subcategoryOptions[roundForm.category]
+                        ? subcategoryOptions[roundForm.category].find(opt => opt.value === question.subcategory)?.label || question.subcategory
+                        : 'ไม่ระบุหมวดหมู่';
                       return (
-                        <tr key={question.id}>
-                          <td>{index + 1}</td>
+                        <tr key={question.id} style={isExternal ? { backgroundColor: '#f8fafc' } : {}}>
+                          <td>{(currentPage - 1) * ITEMS_PER_PAGE + index + 1}</td>
+                          {subcategoryOptions[roundForm.category] && subcategoryOptions[roundForm.category].length > 0 && (
+                            <td>
+                              {subcategoryLabel}
+                              {isExternal && <span style={{ fontSize: '0.7em', backgroundColor: '#edf2f7', padding: '2px 4px', borderRadius: '4px', marginLeft: '4px', color: '#718096' }}>API</span>}
+                            </td>
+                          )}
                           <td>{difficultyLabel}</td>
                           <td className="table-question">{question.text}</td>
-                          <td>{options.length}</td>
+                          <td>{options.length > 0 ? `${options.length} ตัวเลือก` : '-'}</td>
                           <td className="table-answer">{correctText}</td>
                           <td>
                             <div className="table-actions">
-                              <button type="button" className="btn-icon" onClick={() => handleEdit(question)} title="แก้ไข" aria-label="แก้ไขคำถาม">
-                                <i className="bx bx-edit" />
+                              <button 
+                                type="button" 
+                                className="btn-icon" 
+                                onClick={() => handleEdit(question)} 
+                                title="แก้ไข" 
+                                aria-label="แก้ไขคำถาม"
+                                // เปิดให้แก้ไขได้แล้ว
+                              >
+                                <i className="bx bx-edit" style={{ color: isExternal ? '#cbd5e0' : '#3b82f6' }} />
+                              </button>
+                              <button type="button" className="btn-icon" onClick={() => handleDuplicate(question)} title="คัดลอก" aria-label="คัดลอกคำถาม">
+                                <i className="bx bx-copy" style={{ color: '#805ad5' }} />
                               </button>
                               <button
                                 type="button"
                                 className={`btn-icon${deletingQuestionId === question.id ? ' is-busy' : ''}`}
                                 onClick={() => handleDelete(question.id)}
-                                title={deletingQuestionId === question.id ? 'กำลังลบ...' : 'ลบ'}
+                                title={isExternal ? "ไม่สามารถลบคำถามจากระบบภายนอกได้" : (deletingQuestionId === question.id ? 'กำลังลบ...' : 'ลบ')}
                                 aria-label={deletingQuestionId === question.id ? 'กำลังลบคำถาม' : 'ลบคำถาม'}
-                                disabled={deletingQuestionId === question.id}
+                                disabled={deletingQuestionId === question.id || isExternal}
+                                style={isExternal ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
                               >
-                                <i className="bx bx-trash-alt" />
+                                <i className="bx bx-trash-alt" style={isExternal ? { color: '#cbd5e0' } : {}} />
                               </button>
                             </div>
                           </td>
@@ -842,7 +1465,7 @@ const AdminQuizBank = () => {
                     })}
                     {displayedQuestions.length === 0 && (
                       <tr>
-                        <td colSpan="6" className="table-empty">
+                        <td colSpan={subcategoryOptions[roundForm.category] && subcategoryOptions[roundForm.category].length > 0 ? "7" : "6"} className="table-empty">
                           <div className="empty-icon" aria-hidden="true">
                             <svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="#BFC7DE" strokeWidth="1.5"/>
@@ -858,13 +1481,82 @@ const AdminQuizBank = () => {
                     )}
                   </tbody>
                 </table>
+                {totalPages > 1 && (
+                  <div className="pagination-controls">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                    >
+                      &lt;
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                )}
                 {missingQuestionCount > 0 && (
                   <div className="table-footnote warning">
-                    ต้องการเพิ่มอีก {missingQuestionCount} ข้อเพื่อให้ครบ {ASSESSMENT_QUESTION_COUNT} ข้อ
+                    ต้องการเพิ่มอีก {missingQuestionCount} ข้อเพื่อให้ครบ {roundForm.questionCount} ข้อ
                   </div>
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {showHistoryModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+          }}>
+            <div style={{
+              background: 'white', padding: '1.5rem', borderRadius: '8px', width: '90%', maxWidth: '500px',
+              maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#2d3748' }}>ประวัติการแก้ไข</h3>
+                <button onClick={() => setShowHistoryModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', lineHeight: 1, color: '#718096' }}>&times;</button>
+              </div>
+              
+              {selectedRound?.history && selectedRound.history.length > 0 ? (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {selectedRound.history.map((log, idx) => (
+                    <li key={idx} style={{ padding: '0.75rem 0', borderBottom: '1px solid #eee', fontSize: '0.9rem' }}>
+                      <div style={{ fontWeight: 600, color: '#2d3748' }}>{log.action || 'แก้ไขข้อมูล'}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#718096', marginTop: '0.25rem', fontSize: '0.8rem' }}>
+                        <span>{new Date(log.timestamp).toLocaleString('th-TH')}</span>
+                        <span>โดย {log.user}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#718096', padding: '2rem 0', background: '#f7fafc', borderRadius: '6px' }}>
+                  ไม่พบประวัติการแก้ไขเพิ่มเติม
+                </div>
+              )}
+              
+              <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+                <button type="button" className="pill secondary" onClick={() => setShowHistoryModal(false)}>ปิด</button>
+              </div>
+            </div>
           </div>
         )}
       </div>

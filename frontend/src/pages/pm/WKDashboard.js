@@ -1,13 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import './WKDashboard.css';
-import { mockUser, mockProjects, mockSites, mockTasks } from '../mock/mockData';
+import { mockUser, mockProjects, mockSites, mockTasks } from '../../mock/mockData';
 
 const Dashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const navUser = location.state?.user;
   const user = navUser || mockUser;
+
+  // ฟังก์ชัน Logout สำหรับ Sidebar
+  const handleLogout = () => {
+    if (window.confirm("คุณต้องการออกจากระบบใช่หรือไม่?")) {
+      sessionStorage.clear();
+      navigate('/login');
+    }
+  };
 
   // Build maps for joins
   const projectById = useMemo(() => Object.fromEntries(mockProjects.map(p => [p.id, p])) , []);
@@ -56,20 +64,48 @@ const Dashboard = () => {
 
   return (
     <div className="dash-layout">
-      {/* Sidebar */}
+      {/* Sidebar - ปรับให้เหมือน Worker/Foreman */}
       <aside className="dash-sidebar">
+        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
+          PM Portal
+        </div>
         <nav className="menu">
-          <button type="button" className="menu-item active" onClick={goTasks}>Tasks</button>
-          <button
-            type="button"
-            className="menu-item"
-            onClick={() => role === 'worker' && navigate('/skill-assessment', { state: { user } })}
-            disabled={role !== 'worker'}
+          <button 
+            type="button" 
+            className={`menu-item ${location.pathname === '/pm' || location.pathname === '/dashboard' ? 'active' : ''}`} 
+            onClick={() => navigate('/pm', { state: { user } })}
           >
-            Skill Assessment Test
+            หน้าหลัก
           </button>
-          <button type="button" className="menu-item">Submit work</button>
-          <button type="button" className="menu-item">Settings</button>
+          <button 
+            type="button" 
+            className={`menu-item ${location.pathname === '/project-tasks' ? 'active' : ''}`} 
+            onClick={() => navigate('/project-tasks', { state: { user } })}
+          >
+            มอบหมายงาน
+          </button>
+          <button 
+            type="button" 
+            className={`menu-item ${location.pathname === '/projects' ? 'active' : ''}`} 
+            onClick={() => navigate('/projects', { state: { user } })}
+          >
+            โครงการทั้งหมด
+          </button>
+          <button 
+            type="button" 
+            className={`menu-item ${location.pathname === '/pm-settings' ? 'active' : ''}`} 
+            onClick={() => navigate('/pm-settings', { state: { user } })}
+          >
+            ตั้งค่า
+          </button>
+          <button 
+            type="button" 
+            className="menu-item logout-btn" 
+            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
+            onClick={handleLogout}
+          >
+            ออกจากระบบ
+          </button>
         </nav>
       </aside>
 

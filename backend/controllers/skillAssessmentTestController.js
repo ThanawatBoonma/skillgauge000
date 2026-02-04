@@ -1,21 +1,32 @@
 const SkillAssessmentTest = require('../models/SkillAssessmentTest');
 
-// GET /api/skillAssessment/test (เหมือนเดิม)
 exports.getAssessmentExam = async (req, res) => {
     try {
+        const config = await SkillAssessmentTest.getExamStructureConfig();
+        
+        if (!config) {
+            return res.status(500).json({ error: 'Exam configuration not found' });
+        }
+
+        const totalQuestions = config.total_questions || 60;
+        
+        // คำนวณจำนวนข้อ (Logic เดิม)
+        const qLevel1 = Math.round((config.level_1_percent / 100) * totalQuestions);
+        const qLevel2 = Math.round((config.level_2_percent / 100) * totalQuestions);
+        const qLevel3 = totalQuestions - qLevel1 - qLevel2;
+
         const [level1, level2, level3] = await Promise.all([
-            SkillAssessmentTest.getRandomQuestionsByLevel(1, 24),
-            SkillAssessmentTest.getRandomQuestionsByLevel(2, 24),
-            SkillAssessmentTest.getRandomQuestionsByLevel(3, 12)
+            SkillAssessmentTest.getRandomQuestionsByLevel(1, qLevel1),
+            SkillAssessmentTest.getRandomQuestionsByLevel(2, qLevel2),
+            SkillAssessmentTest.getRandomQuestionsByLevel(3, qLevel3)
         ]);
 
         const allQuestions = [...level1, ...level2, ...level3];
         const shuffledQuestions = allQuestions.sort(() => Math.random() - 0.5);
 
-        // ... (ส่วนนับหมวดหมู่เหมือนเดิม)
-
+        // [แก้ไข] ส่งค่า Config ทั้งหมดกลับไป เพื่อให้ Frontend เอาไปแสดงตาราง
         res.json({
-            total: shuffledQuestions.length,
+            exam_config: config, // ส่งทั้ง object (มี duration, percent ต่างๆ ครบ)
             questions: shuffledQuestions
         });
 
@@ -25,17 +36,21 @@ exports.getAssessmentExam = async (req, res) => {
     }
 };
 
-// POST /api/skillAssessment/submit (ปรับปรุงใหม่: ไม่ส่งคะแนนกลับ)
+// ... ส่วน submitAssessment เหมือนเดิม ...
 exports.submitAssessment = async (req, res) => {
+    // (ใช้โค้ดเดิมจากรอบที่แล้วได้เลยครับ ไม่ต้องแก้ส่วนนี้)
     const { answers, user_id } = req.body; 
 
-    if (!answers || Object.keys(answers).length === 0) {
-        return res.status(400).json({ error: 'No answers provided' });
-    }
+    console.log(`User ID: ${user_id}, Answers Received:`, answers);
+
+    const submittedAnswers = answers || {}; 
 
     try {
-        const questionIds = Object.keys(answers);
-        const correctAnswersDB = await SkillAssessmentTest.getCorrectAnswers(questionIds);
+        const questionIds = Object.keys(submittedAnswers);
+        let correctAnswersDB = [];
+        if (questionIds.length > 0) {
+            correctAnswersDB = await SkillAssessmentTest.getCorrectAnswers(questionIds);
+        }
         
         const answerMap = {};
         correctAnswersDB.forEach(row => {
@@ -45,25 +60,19 @@ exports.submitAssessment = async (req, res) => {
         let rawScore = 0; 
         const totalQuestions = 60; 
 
-        for (const [qid, userAns] of Object.entries(answers)) {
+        for (const [qid, userAns] of Object.entries(submittedAnswers)) {
             if (answerMap[qid] && answerMap[qid].toUpperCase() === String(userAns).toUpperCase()) {
                 rawScore++;
             }
         }
 
-        // คำนวณคะแนนทฤษฎีเต็ม 70
         const theoryScore = (rawScore / totalQuestions) * 70;
 
-        // บันทึกลง DB
         if (user_id) {
             await SkillAssessmentTest.saveAssessmentResult(user_id, theoryScore);
         }
 
-        // ตอบกลับแค่ว่าสำเร็จ (ไม่ส่ง score, percentage กลับไป)
-        res.json({
-            message: "Submission successful",
-            status: "completed"
-        });
+        res.json({ message: "Submission successful" });
 
     } catch (err) {
         console.error('Submit Assessment Error:', err);
