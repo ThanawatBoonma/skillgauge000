@@ -86,37 +86,48 @@ const Login = () => {
       } else if (serverUser?.role) {
         chosenRole = serverUser.role;
       }
+      
+      // แปลงเป็นตัวพิมพ์เล็กทั้งหมดเพื่อความชัวร์ในการเช็ค
+      chosenRole = chosenRole.toLowerCase(); 
 
-      // 2. ปรับการเซฟข้อมูลเข้า sessionStorage ให้เป็นแบบ Object
+      // 2. เซฟข้อมูลเข้า Session
       try {
         localStorage.setItem('token', token);
-        sessionStorage.setItem('role', chosenRole); // เก็บแยกไว้ใช้เช็ค Route
+        sessionStorage.setItem('token', token); // เผื่อบางหน้าใช้ session
+        sessionStorage.setItem('role', chosenRole);
 
-        // สร้าง Object เพื่อเซฟให้ WorkerDashboard ไป JSON.parse ต่อได้
         const userToStore = {
           id: serverUser?.id || '',
-          name: serverUser?.username || serverUser?.email || 'ผู้ใช้งาน', // ชื่อที่จะไปแสดงบน Dashboard
-          role: chosenRole
+          name: serverUser?.username || serverUser?.full_name || serverUser?.name || 'ผู้ใช้งาน', // ดึง full_name ด้วย
+          full_name: serverUser?.full_name || serverUser?.name, // สำรองไว้
+          role: chosenRole,
+          email: serverUser?.email
         };
-        sessionStorage.setItem('user', JSON.stringify(userToStore)); // เซฟเป็น JSON string
+        sessionStorage.setItem('user', JSON.stringify(userToStore));
 
       } catch (e) {
         console.error("Session storage error:", e);
       }
 
-      // 3. การ Navigate ไปยังหน้าต่างๆ (ตรวจสอบ Path ให้ตรงกับ App.js)
+      // 3. Navigate ตาม Role (แก้ไขจุดนี้!)
       const navUser = { username: serverUser?.phone || username, role: chosenRole };
 
       if (chosenRole === 'admin') {
-        navigate('/admin', { state: { user: navUser, source: 'login' } });
-      } else if (chosenRole === 'project_manager') {
-        navigate('/pm', { state: { user: navUser, source: 'login' } });
-      } else if (chosenRole === 'foreman') {
-        navigate('/foreman', { state: { user: navUser, source: 'login' } }); // Path ต้องตรงกับ App.js
-      } else if (chosenRole === 'worker') {
-        navigate('/worker', { state: { user: navUser, source: 'login' } }); // Path ต้องตรงกับ App.js
-      } else {
-        navigate('/dashboard', { state: { user: navUser, source: 'login' } });
+        navigate('/admin', { state: { user: navUser } });
+      } 
+      // ✅ แก้ไข: เช็คทั้ง 'projectmanager' และ 'project_manager'
+      else if (chosenRole === 'projectmanager' || chosenRole === 'project_manager') {
+        navigate('/pm', { state: { user: navUser } }); // ต้องมั่นใจว่าใน App.js มี Route path='/pm'
+      } 
+      else if (chosenRole === 'foreman') {
+        navigate('/foreman', { state: { user: navUser } });
+      } 
+      else if (chosenRole === 'worker') {
+        navigate('/worker', { state: { user: navUser } });
+      } 
+      else {
+        // ถ้าไม่ตรงเงื่อนไขไหนเลย ให้ไปหน้า Dashboard กลาง
+        navigate('/dashboard', { state: { user: navUser } });
       }
 
     } catch (e) {
@@ -124,7 +135,6 @@ const Login = () => {
       setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
     }
   };
-
   return (
     <div className="login-screen">
       <div className="login-page">

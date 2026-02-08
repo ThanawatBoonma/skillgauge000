@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { getAssessmentExam, submitAssessment } = require('../controllers/skillAssessmentTestController');
+// ✅ เพิ่ม checkExamStatus ในปีกกา
+const { getAssessmentExam, submitAssessment, checkExamStatus } = require('../controllers/skillAssessmentTestController');
 
-// Import Middleware (ถ้าต้องการให้ Login ก่อนสอบ ให้เปิดใช้)
-// const { protect } = require('../middleware/authMiddleware');
-
-// GET /api/skillAssessment/test -> ดึงข้อสอบ 60 ข้อ
+// GET /api/skillAssessment/test -> ดึงข้อสอบ
 router.get('/test', getAssessmentExam);
 
 // POST /api/skillAssessment/submit -> ส่งคำตอบ
 router.post('/submit', submitAssessment);
+
+// GET /api/skillAssessment/status -> เช็คสิทธิ์สอบ
+router.get('/status', checkExamStatus);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import '../pm/WKDashboard.css'; 
 
 const WorkerDashboard = () => {
@@ -7,161 +8,203 @@ const WorkerDashboard = () => {
 
   const [user, setUser] = useState({ name: 'ผู้ใช้งาน', id: '', role: 'worker' });
   const [assignedTask, setAssignedTask] = useState(null); 
-  const [loadingTask, setLoadingTask] = useState(false);
+  const [skillLevel, setSkillLevel] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // --- State สำหรับ Modal ---
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  
+  // ✅ เพิ่ม State สำหรับ Modal แจ้งเตือนรอผลประเมิน
+  const [showPendingModal, setShowPendingModal] = useState(false);
 
   useEffect(() => {
     const storedUserStr = sessionStorage.getItem('user');
     if (storedUserStr) {
-      setUser(JSON.parse(storedUserStr));
-      fetchAssignedTask();
-    } else {
-       fetchAssignedTask();
+      const u = JSON.parse(storedUserStr);
+      setUser(u);
+      fetchDashboardData(u.id);
     }
   }, []);
 
-  const fetchAssignedTask = async () => {
-    setLoadingTask(true);
+  const fetchDashboardData = async (userId) => {
+    setLoading(true);
     try {
-      setTimeout(() => {
-        setAssignedTask({
-            id: 'T-1024',
-            project: 'โครงการหมู่บ้านจัดสรร The Zenith',
-            location: 'โซน B - งานเทคานชั้น 2',
-            foreman: 'หัวหน้าวิชัย',
-            date: '08/01/2026',
-            status: 'pending_acceptance' // เริ่มต้นเป็นรอรับงาน
-        });
-        setLoadingTask(false);
-      }, 500);
-    } catch (err) { setLoadingTask(false); }
-  };
-
-  const handleAcceptTask = () => {
-    const confirm = window.confirm("ยืนยันการรับงานนี้หรือไม่?");
-    if (confirm) {
-      setAssignedTask(prev => ({ ...prev, status: 'accepted' }));
+        const API = 'http://localhost:4000';
+        const res = await axios.get(`${API}/api/wkdashboard/info?user_id=${userId}`);
+        if (res.data) {
+            setAssignedTask(res.data.assignedTask);
+            setSkillLevel(res.data.skillLevel);
+        }
+    } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+    } finally {
+        setLoading(false);
     }
   };
 
-  // ✅ ฟังก์ชันกดเพื่อไปหน้าส่งงาน (Task Detail)
-  const handleGoToSubmit = () => {
-    navigate('/worker/task-detail', { state: { task: assignedTask } });
+const handleGoToSubmit = () => {
+     if (assignedTask) {
+        // ✅ ส่งข้อมูลงาน (task object) ไปที่หน้า WorkerTaskDetail
+        navigate('/worker/task-detail', { state: { task: assignedTask } });
+     } else {
+        alert("คุณยังไม่มีงานที่ต้องส่ง");
+     }
   };
 
-  const handleLogout = () => {
-    if (window.confirm("ต้องการออกจากระบบใช่หรือไม่?")) {
+  // --- Logic เช็คสิทธิ์การสอบ ---
+  const handleStartTest = async () => {
+    if (!user || !user.id) return;
+
+    try {
+        const API = 'http://localhost:4000';
+        const res = await axios.get(`${API}/api/skillAssessment/status?user_id=${user.id}`);
+        const { status, nextLevel } = res.data;
+
+        if (status === 'pending_practical') {
+            // ✅ เปลี่ยนจาก alert เป็นเปิด Modal
+            setShowPendingModal(true);
+        } else if (status === 'max_level') {
+            alert("🎉 สุดยอด! คุณอยู่ในระดับทักษะสูงสุดแล้ว (Level 3)");
+        } else if (status === 'can_test') {
+            navigate('/worker/test', { state: { targetLevel: nextLevel } });
+        } else {
+            alert("ไม่สามารถเริ่มทำแบบทดสอบได้ในขณะนี้");
+        }
+
+    } catch (err) {
+        console.error("Error checking exam status:", err);
+        alert("ไม่สามารถเชื่อมต่อระบบตรวจสอบสิทธิ์การสอบได้");
+    }
+  };
+
+  const handleLogoutClick = () => setShowLogoutModal(true);
+  
+  const confirmLogout = () => {
       sessionStorage.clear();
+      localStorage.removeItem('token');
       navigate('/login');
-    }
   };
+
+  // Styles Modal
+  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' };
+  const modalContentStyle = { background: 'white', padding: '30px', borderRadius: '12px', width: '350px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' };
+  const btnModalStyle = { padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', margin: '0 5px' };
 
   return (
     <div className="dash-layout">
-      {/* Sidebar */}
+      
+      {/* === Logout Modal === */}
+      {showLogoutModal && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <h3 style={{color: '#e74c3c', margin: '0 0 15px'}}>ยืนยันออกจากระบบ?</h3>
+                <div style={{display:'flex', justifyContent:'center', gap: '10px'}}>
+                    <button onClick={() => setShowLogoutModal(false)} style={{...btnModalStyle, background:'#e2e8f0', color:'#475569'}}>ยกเลิก</button>
+                    <button onClick={confirmLogout} style={{...btnModalStyle, background:'#ef4444', color:'white'}}>ยืนยัน</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* ✅ === Pending Practical Modal (ป็อปอัพรอผลประเมิน) === */}
+      {showPendingModal && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
+                <h3 style={{color: '#f59e0b', margin: '0 0 10px'}}>แจ้งเตือน</h3>
+                <p style={{color: '#555', fontSize: '16px', marginBottom: '25px', lineHeight: '1.5'}}>
+                    กรุณารอผลการประเมินภาคปฏิบัติ
+                </p>
+                <div style={{display:'flex', justifyContent:'center'}}>
+                    <button 
+                        onClick={() => setShowPendingModal(false)} 
+                        style={{...btnModalStyle, background:'#3b82f6', color:'white', width: '100%'}}
+                    >
+                        ตกลง
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <aside className="dash-sidebar">
+        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
+          Worker Portal
+        </div>
         <nav className="menu">
-          <div style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-                Worker Portal
-          </div>
           <button className="menu-item active" onClick={() => navigate('/worker')}>หน้าหลัก</button>
-          <button className="menu-item" onClick={() => navigate('/worker/test')}>แบบทดสอบวัดทักษะ</button>
-          <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่า</button>
-          <button className="menu-item" onClick={handleLogout} style={{ marginTop: '20px', color: '#ef4444', borderColor: '#fee2e2', background: '#fef2f2' }}>
-            ออกจากระบบ
-          </button>
+          <button className="menu-item" onClick={handleStartTest}>สอบวัดระดับ</button>
+          <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่าบัญชี</button>
+          <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="dash-main">
-        <div className="dash-header" style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', background: 'white' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-             <h1 style={{ margin: 0, fontSize: '24px' }}>สวัสดี, {user.name}</h1>
-             <span className="role-pill" style={{ background: '#22c55e', color: 'white', padding: '5px 15px', borderRadius: '20px', fontSize: '14px' }}>Worker</span>
-          </div>
-        </div>
-
-        <div className="dashboard-content" style={{ padding: '30px' }}>
-          
-          {/* ✅ ส่วน Status Cards (ที่เคยหายไป) กลับมาแล้ว */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-            <div style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ color: '#64748b', fontSize: '14px' }}>สถานะทักษะ</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b', marginTop: '5px' }}>รอการประเมิน</div>
-            </div>
-            <div style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                <div style={{ color: '#64748b', fontSize: '14px' }}>งานที่ได้รับมอบหมาย</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6', marginTop: '5px' }}>
-                    {assignedTask && assignedTask.status === 'accepted' ? '1 งาน' : '0 งาน'}
-                </div>
-            </div>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
+          <div style={{ marginBottom: '30px' }}>
+            <h1 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>สวัสดี, {user.full_name || user.name} 👋</h1>
+            <p style={{ color: '#64748b' }}>ยินดีต้อนรับสู่ระบบจัดการงานช่าง</p>
           </div>
 
-          <h3 style={{ color: '#334155', marginBottom: '15px' }}>งานของคุณ</h3>
+          <h3 style={{ color: '#334155', marginBottom: '15px', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>ประเมินทักษะ</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+             
+             {/* การ์ดสอบ */}
+             <div onClick={handleStartTest} style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#1e293b', display:'flex', alignItems:'center', gap:'10px' }}>📝 แบบทดสอบวัดทักษะ</h4>
+                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>ทำแบบทดสอบเพื่อวัดระดับความรู้ทางทฤษฎีและปฏิบัติ</p>
+             </div>
 
-          {/* Task Section */}
-          <div style={{ marginBottom: '40px' }}>
-            {loadingTask ? (
-                <div>กำลังโหลด...</div>
-            ) : !assignedTask ? (
-                <div style={{ padding: '40px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0', color: '#94a3b8' }}>
-                    ไม่มีงานใหม่
-                </div>
-            ) : assignedTask.status === 'pending_acceptance' ? (
-                /* 🔶 สถานะ: งานใหม่ รอการตอบรับ */
-                <div style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', borderLeft: '5px solid #f59e0b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
-                        <div>
-                            <span style={{ background: '#fef3c7', color: '#d97706', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>งานใหม่!</span>
-                            <h3 style={{ margin: '10px 0', color: '#1e293b' }}>{assignedTask.project}</h3>
-                            <p style={{ margin: '5px 0', color: '#475569' }}>📍 {assignedTask.location}</p>
-                            <div style={{ fontSize: '14px', color: '#64748b', marginTop: '8px' }}>
-                                โดย: {assignedTask.foreman} | วันที่: {assignedTask.date}
-                            </div>
-                        </div>
-                        <div>
-                            <button onClick={handleAcceptTask} style={{ padding: '10px 24px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)' }}>
-                                รับงาน
-                            </button>
-                        </div>
+             <div style={{ background: '#f8fafc', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>ระดับของคุณ</h4>
+                {skillLevel > 0 ? (
+                    <div>
+                        <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>Level {skillLevel}</span>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#15803d' }}>คุณอยู่ในระดับทักษะ {skillLevel}</p>
                     </div>
-                </div>
-            ) : (
-                /* ✅ สถานะ: รับงานแล้ว -> แสดงปุ่มไปหน้าส่งงาน */
-                <div style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #bbf7d0', borderLeft: '5px solid #22c55e', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', alignItems: 'center' }}>
+                ) : (
+                    <div>
+                        <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#64748b' }}>-</span>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#ef4444' }}>คุณยังไม่มีระดับทักษะ</p>
+                    </div>
+                )}
+             </div>
+          </div>
+
+          <h3 style={{ color: '#334155', marginBottom: '15px', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>งานของคุณ</h3>
+          <div style={{ marginBottom: '40px' }}>
+            {loading ? (
+                <div style={{textAlign:'center', padding:'20px'}}>กำลังโหลดข้อมูลงาน...</div>
+            ) : assignedTask ? (
+                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    <div style={{ background: '#3b82f6', padding: '15px 20px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold' }}>งานปัจจุบัน</span>
+                        <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px' }}>
+                            {assignedTask.status === 'assigned' ? 'ได้รับมอบหมาย' : 'กำลังดำเนินการ'}
+                        </span>
+                    </div>
+                    <div style={{ padding: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                                <span style={{ fontSize: '20px' }}>✅</span>
-                                <h3 style={{ margin: 0, color: '#15803d' }}>คุณได้รับงานนี้แล้ว</h3>
-                            </div>
-                            <p style={{ margin: 0, color: '#475569' }}>
-                                โครงการ: {assignedTask.project} <br/>
-                                กรุณาดำเนินการและส่งงานเมื่อเสร็จสิ้น
+                            <h3 style={{ margin: '0 0 10px 0', color: '#1e293b' }}>{assignedTask.task_name}</h3>
+                            <p style={{ margin: 0, color: '#64748b', lineHeight: '1.6' }}>
+                                โครงการ: <strong>{assignedTask.project_name}</strong> <br/>
+                                สถานที่: {assignedTask.site_location} <br/>
+                                ผู้คุมงาน: {assignedTask.foreman_name || '-'}
                             </p>
                          </div>
                          <div>
-                            <button 
-                                onClick={handleGoToSubmit}
-                                style={{ padding: '12px 24px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(34, 197, 94, 0.3)' }}
-                            >
+                            <button onClick={handleGoToSubmit} style={{ padding: '12px 24px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(34, 197, 94, 0.3)' }}>
                                 ดูรายละเอียด / ส่งงาน &rarr;
                             </button>
                          </div>
                     </div>
                 </div>
+            ) : (
+                <div style={{ textAlign: 'center', padding: '40px', background: '#f1f5f9', borderRadius: '12px', border: '2px dashed #cbd5e1', color: '#94a3b8' }}>
+                    <p>ยังไม่มีงานที่ได้รับมอบหมายในขณะนี้</p>
+                </div>
             )}
           </div>
-
-          <h3 style={{ color: '#334155', marginBottom: '15px' }}>เมนู</h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-             <div onClick={() => navigate('/worker/test')} style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s' }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>📝 แบบทดสอบวัดทักษะ</h4>
-                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>ทำแบบทดสอบเพื่อวัดระดับความรู้ทางทฤษฎี</p>
-             </div>
-          </div>
-
         </div>
       </main>
     </div>

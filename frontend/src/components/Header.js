@@ -16,9 +16,7 @@ const Header = () => {
         {/* Header Actions: เหลือแค่ปุ่มเข้าสู่ระบบ (หรือจะลบออกก็ได้ถ้าหน้าแรกเป็น Login อยู่แล้ว) */}
         <div className="header-actions">
            
-          <Link to="/login" className="sign-in-btn" role="button">
-            เข้าสู่ระบบ
-          </Link> 
+          
         </div>
       </div>
     </header>

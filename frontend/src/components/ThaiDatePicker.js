@@ -6,9 +6,10 @@ const MONTH_NAMES = [
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
 ];
 
-const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือน/ปี (พ.ศ.)", className = "" }) => {
+// ✅ เพิ่ม popperPlacement ใน props
+const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือน/ปี (พ.ศ.)", className = "", popperPlacement = "bottom-start" }) => {
     const [showCalendar, setShowCalendar] = useState(false);
-    const [currentDate, setCurrentDate] = useState(new Date()); // For navigation
+    const [currentDate, setCurrentDate] = useState(new Date()); 
     const [selectedDate, setSelectedDate] = useState(null);
 
     const containerRef = useRef(null);
@@ -44,18 +45,8 @@ const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือ
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     };
 
-    const handleYearChange = (e) => {
-        // Input is B.E., convert to A.D. for state
-        const beYear = parseInt(e.target.value, 10);
-        if (!isNaN(beYear)) {
-            setCurrentDate(new Date(beYear - 543, currentDate.getMonth(), 1));
-        }
-    };
-
     const handleDateClick = (day) => {
         const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-        // Adjust for timezone offset issue by setting time to noon or keeping local
-        // Simple way: YYYY-MM-DD string
         const year = newDate.getFullYear();
         const month = String(newDate.getMonth() + 1).padStart(2, '0');
         const dateDay = String(day).padStart(2, '0');
@@ -78,17 +69,13 @@ const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือ
         const month = currentDate.getMonth();
         const daysInMonth = getDaysInMonth(year, month);
         const firstDay = getFirstDayOfMonth(year, month);
-
-        // Thai year for header
         const thaiYear = year + 543;
 
         const days = [];
-        // Empty slots for previous month
         for (let i = 0; i < firstDay; i++) {
             days.push(<div key={`empty-${i}`} className="tdp-day empty"></div>);
         }
 
-        // Days
         for (let i = 1; i <= daysInMonth; i++) {
             const isSelected = selectedDate &&
                 selectedDate.getDate() === i &&
@@ -110,8 +97,15 @@ const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือ
             );
         }
 
+        // ✅ คำนวณตำแหน่ง: ถ้าเป็น top ให้เด้งขึ้นด้านบน
+        const isTop = popperPlacement.startsWith('top');
+        const positionStyle = isTop 
+            ? { bottom: 'calc(100% + 5px)', top: 'auto', position: 'absolute', zIndex: 1000 } 
+            : { top: 'calc(100% + 5px)', bottom: 'auto', position: 'absolute', zIndex: 1000 };
+
         return (
-            <div className="tdp-calendar">
+            // ✅ ใส่ style เพื่อบังคับตำแหน่ง
+            <div className="tdp-calendar" style={positionStyle}>
                 <div className="tdp-header">
                     <button type="button" onClick={handlePrevMonth}>&lt;</button>
                     <div className="tdp-controls">
@@ -140,13 +134,7 @@ const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือ
                     <button type="button" onClick={handleNextMonth}>&gt;</button>
                 </div>
                 <div className="tdp-weekdays">
-                    <div>อา</div>
-                    <div>จ</div>
-                    <div>อ</div>
-                    <div>พ</div>
-                    <div>พฤ</div>
-                    <div>ศ</div>
-                    <div>ส</div>
+                    <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
                 </div>
                 <div className="tdp-body">
                     {days}
@@ -156,7 +144,7 @@ const ThaiDatePicker = ({ value, onChange, placeholder = "วัน/เดือ
     };
 
     return (
-        <div className={`thai-date-picker ${className}`} ref={containerRef}>
+        <div className={`thai-date-picker ${className}`} ref={containerRef} style={{position: 'relative'}}>
             <input
                 type="text"
                 readOnly

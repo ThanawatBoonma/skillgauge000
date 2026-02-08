@@ -20,17 +20,19 @@ import WKProjectTasks from './pages/pm/WKProject_Tasks';
 import WKAssignWorker from './pages/pm/WKAssignWorker'; 
 import ProjectDetail from './pages/pm/ProjectDetail';
 import PMSettings from './pages/pm/PMSettings';
+import TaskAssessment from './pages/pm/task_assessment';
 
 // Foreman Pages (ย้ายเข้า folder Foreman)
 import ForemanAssessment from './pages/Foreman/ForemanAssessment';
 import ForemanDashboard from './pages/Foreman/ForemanDashboard';
 import ForemanReportSystem from './pages/Foreman/ForemanReportSystem';
 import ForemanSettings from './pages/Foreman/ForemanSettings';
+import FMTaskDetail from './pages/Foreman/fmtask_detail';
 
 // Worker Pages (ย้ายเข้า folder Worker)
 import WorkerDashboard from './pages/Worker/WorkerDashboard';
 import SkillAssessmentTest from './pages/Worker/SkillAssessmentTest'; 
-
+import WorkerTaskDetail from './pages/Worker/WorkerTaskDetail';
 import WorkerSettings from './pages/Worker/WorkerSettings';
 
 import './App.css';
@@ -60,17 +62,18 @@ function App() {
             <Route path="/assign-worker" element={<WKAssignWorker />} /> 
             <Route path="/project-detail" element={<ProjectDetail />} />
             <Route path="/pm-settings" element={<PMSettings />} />
-            
+            <Route path="/task-assessment" element={<TaskAssessment />} />
 
             {/* Foreman Routes */}
             <Route path="/foreman" element={<ForemanDashboard />} />
             <Route path="/foreman/assessment" element={<ForemanAssessment />} />
             <Route path="/foreman-reports" element={<ForemanReportSystem />} />
             <Route path="/foreman-settings" element={<ForemanSettings />} />
+            <Route path="/foreman/task-detail" element={<FMTaskDetail />} />
 
             {/* Worker Routes */}
             <Route path="/worker" element={<WorkerDashboard />} />
-            
+            <Route path="/worker/task-detail" element={<WorkerTaskDetail />} />
             <Route path="/worker-settings" element={<WorkerSettings />} />
             
             {/* เอาหน้าทำข้อสอบ (worker/test) ออกจากตรงนี้  */}
