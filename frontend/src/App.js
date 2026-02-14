@@ -5,10 +5,9 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
-import AdminUserTableData from './pages/admin/AdminUserTableData';
-import AdminUserTableDataEdit from './pages/admin/AdminUserTableDataEdit';
+
 import AdminWorkerRegistration from './pages/admin/AdminWorkerRegistration';
 
 // PM Pages (ย้ายเข้า folder pm)
@@ -50,8 +49,7 @@ function App() {
             {/* Admin Routes */}
             <Route path="admin/worker-registration" element={<AdminRoute><AdminWorkerRegistration /></AdminRoute>} />
             <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-            <Route path="admin/users/view" element={<AdminRoute><AdminUserTableData /></AdminRoute>} />
-            <Route path="admin/users/edit" element={<AdminRoute><AdminUserTableDataEdit /></AdminRoute>} />
+            
 
             {/* PM Routes */}
             <Route path="dashboard" element={<WKDashboard />} />

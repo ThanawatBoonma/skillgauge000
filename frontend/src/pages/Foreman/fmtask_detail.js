@@ -44,7 +44,7 @@ const FMTaskDetail = () => {
           Foreman Panel
         </div>
         <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/foreman')}>&larr; กลับ Dashboard</button>
+            <button className="menu-item" onClick={() => navigate('/foreman')}>&larr; กลับหน้าหลัก</button>
         </nav>
       </aside>
 

@@ -92,12 +92,19 @@ const PMProjectManager = () => {
       )}
 
       <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>PM Portal</div>
+        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
+          PM Portal
+        </div>
         <nav className="menu">
-          <button className="menu-item active">หน้าหลัก</button>
-          <button className="menu-item" onClick={() => navigate('/projects')}>งานทั้งหมด</button>
-          {/* ✅ เรียกใช้ handleLogoutClick เพื่อเปิด Modal */}
-          <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
+          <button className="menu-item" onClick={() => navigate('/pm')}>หน้าหลัก</button>
+          <button className="menu-item" onClick={() => navigate('/pm-settings')}>ตั้งค่าบัญชี</button>
+          <button 
+            className="menu-item logout-btn" 
+            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
+            onClick={handleLogoutClick} 
+          >
+            ออกจากระบบ
+          </button>
         </nav>
       </aside>
 

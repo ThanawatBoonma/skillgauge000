@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { mockUser } from '../../mock/mockData';
-import '../pm/WKDashboard.css'; // ใช้ CSS มาตรฐานของระบบ
+import axios from 'axios'; // ✅ เพิ่ม axios เพื่อเชื่อมต่อ API
+import '../pm/WKDashboard.css';
 
 const ForemanSettings = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   
-  // ดึงข้อมูลผู้ใช้จาก state หรือใช้ข้อมูลจำลอง (กำหนดเป็น Foreman)
-  const user = location.state?.user || { ...mockUser, role: 'Foreman', name: 'หัวหน้าวิชัย', email: 'foreman@example.com' };
-
-  const handleLogout = () => {
-    if (window.confirm("คุณต้องการออกจากระบบใช่หรือไม่?")) {
-      sessionStorage.clear();
-      navigate('/login');
-    }
-  };
+  // ✅ ดึง user จาก sessionStorage
+  const userStr = sessionStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : { name: 'Foreman User', email: 'foreman@example.com', role: 'foreman', id: 0 };
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -23,54 +16,117 @@ const ForemanSettings = () => {
     confirmPassword: ''
   });
 
+  // ✅ State Modal
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [infoModal, setInfoModal] = useState({ show: false, type: '', message: '' });
+
   const handleInputChange = (e) => {
     setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("รหัสผ่านใหม่ไม่ตรงกัน");
+      setInfoModal({ show: true, type: 'error', message: 'รหัสผ่านใหม่ไม่ตรงกัน กรุณาระบุใหม่อีกครั้ง' });
       return;
     }
-    alert("บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว");
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    
+    try {
+        const API = 'http://localhost:4000';
+        await axios.post(`${API}/api/setting/password`, {
+            user_id: user.id,
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword
+        });
+
+        setInfoModal({ show: true, type: 'success', message: 'เปลี่ยนรหัสผ่านสำเร็จ!' });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+    } catch (err) {
+        console.error(err);
+        setInfoModal({ 
+            show: true, 
+            type: 'error', 
+            message: err.response?.data?.error || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน" 
+        });
+    }
   };
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    sessionStorage.clear();
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
+  const closeInfoModal = () => {
+    setInfoModal({ ...infoModal, show: false });
+  };
+
+  // Styles Modal
+  const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' };
+  const modalContentStyle = { background: 'white', padding: '30px', borderRadius: '12px', width: '350px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' };
+  const btnModalStyle = { padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', margin: '0 5px', minWidth: '100px' };
 
   return (
     <div className="dash-layout">
-      {/* Sidebar - โครงสร้างแบบ Foreman Portal */}
+      
+      {/* === Logout Modal === */}
+      {showLogoutModal && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <h3 style={{color: '#e74c3c', margin: '0 0 15px'}}>ยืนยันออกจากระบบ?</h3>
+                <div style={{display:'flex', justifyContent:'center', gap: '10px'}}>
+                    <button onClick={() => setShowLogoutModal(false)} style={{...btnModalStyle, background:'#e2e8f0', color:'#475569'}}>ยกเลิก</button>
+                    <button onClick={confirmLogout} style={{...btnModalStyle, background:'#ef4444', color:'white'}}>ยืนยัน</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* === Info Modal === */}
+      {infoModal.show && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <div style={{ fontSize: '40px', marginBottom: '15px' }}>
+                    {infoModal.type === 'success' ? '✅' : '❌'}
+                </div>
+                <h3 style={{
+                    color: infoModal.type === 'success' ? '#22c55e' : '#ef4444', 
+                    margin: '0 0 15px'
+                }}>
+                    {infoModal.type === 'success' ? 'สำเร็จ' : 'แจ้งเตือน'}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '16px', marginBottom: '25px', lineHeight: '1.5' }}>
+                    {infoModal.message}
+                </p>
+                <button 
+                    onClick={closeInfoModal} 
+                    style={{...btnModalStyle, background: '#3b82f6', color: 'white', width: '100%', padding: '12px'}}
+                >
+                    ตกลง
+                </button>
+            </div>
+        </div>
+      )}
+
+      {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
           Foreman Portal
         </div>
         <nav className="menu">
-          <button 
-            type="button" 
-            className="menu-item" 
-            onClick={() => navigate('/foreman', { state: { user } })}
-          >
-            หน้าหลัก
-          </button>
-          <button 
-            type="button" 
-            className="menu-item" 
-            onClick={() => navigate('/foreman-reports', { state: { user } })}
-          >
-            รายงานสรุปงาน
-          </button>
-          <button 
-            type="button" 
-            className="menu-item active"
-          >
-            ตั้งค่า
-          </button>
+          <button className="menu-item" onClick={() => navigate('/foreman')}>หน้าหลัก</button>
           
+          <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่าบัญชี</button>
           <button 
-            type="button" 
             className="menu-item logout-btn" 
             style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
           >
             ออกจากระบบ
           </button>
@@ -91,11 +147,11 @@ const ForemanSettings = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={labelStyle}>ชื่อ-นามสกุล (อ่านได้อย่างเดียว)</label>
-                  <input type="text" value={user.name} readOnly style={readOnlyStyle} />
+                  <input type="text" value={user.full_name || user.name} readOnly style={readOnlyStyle} />
                 </div>
                 <div>
                   <label style={labelStyle}>อีเมล (อ่านได้อย่างเดียว)</label>
-                  <input type="email" value={user.email || user.username} readOnly style={readOnlyStyle} />
+                  <input type="email" value={user.email} readOnly style={readOnlyStyle} />
                 </div>
               </div>
             </div>

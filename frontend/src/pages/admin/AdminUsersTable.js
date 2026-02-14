@@ -10,7 +10,20 @@ const workerErrorMessages = {
   worker_columns_unavailable: 'ไม่สามารถบันทึกข้อมูลพนักงานได้ กรุณาตรวจสอบโครงสร้างตาราง',
   duplicate_email: 'อีเมลนี้ถูกใช้งานแล้ว',
   duplicate_national_id: 'เลขบัตรประชาชนนี้ถูกใช้งานแล้ว',
-  invalid_national_id_length: 'เลขบัตรประชาชนต้องมี 13 หลัก'
+  invalid_national_id_length: 'เลขบัตรประชาชนต้องมี 13 หลัก',
+  assessment_not_passed: 'ยังไม่ผ่านการสอบทักษะ ไม่สามารถเลื่อนเป็นพนักงานประจำได้'
+};
+
+const STATUS_LABELS = {
+  probation: 'ทดลองงาน',
+  permanent: 'พนักงานประจำ',
+  active: 'ทดลองงาน'
+};
+
+const STATUS_BADGE_CLASSES = {
+  probation: 'status-badge status-badge--probation',
+  permanent: 'status-badge status-badge--permanent',
+  active: 'status-badge status-badge--probation'
 };
 
 const AdminUsersTable = () => {
@@ -19,6 +32,7 @@ const AdminUsersTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState(location.state?.filterCategory || 'all');
   const [filterStatus, setFilterStatus] = useState(location.state?.filterStatus || 'all');
+  const [filterSkill, setFilterSkill] = useState(location.state?.filterSkill || 'all');
   const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,8 +42,12 @@ const AdminUsersTable = () => {
     try {
       setLoading(true);
       setError('');
-      const data = await apiRequest('/api/manageusers/pulluser');
-      const items = Array.isArray(data) ? data : []; 
+      const data = await apiRequest('/api/admin/workers');
+      const items = Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data)
+          ? data
+          : [];
       setWorkers(items);
     } catch (err) {
       console.error('Failed to load workers', err);
@@ -62,16 +80,20 @@ const AdminUsersTable = () => {
                            (worker.phone || '').includes(searchTerm);
       const matchesCategory = filterCategory === 'all' || worker.category === filterCategory;
       const matchesStatus = filterStatus === 'all' || 
-                            (filterStatus === 'probation' && worker.status === 'probation') ||
-                            (filterStatus === 'permanent' && worker.status !== 'probation');
+                (filterStatus === 'probation' && (worker.status === 'probation' || worker.status === 'active')) ||
+                (filterStatus === 'permanent' && worker.status === 'permanent');
+      const matchesSkill = filterSkill === 'all' ||
+                (filterSkill === 'none' && (worker.score === undefined || worker.score === null)) ||
+                (filterSkill === 'passed' && worker.score !== undefined && worker.score !== null && worker.score >= 60) ||
+                (filterSkill === 'failed' && worker.score !== undefined && worker.score !== null && worker.score < 60);
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesCategory && matchesStatus && matchesSkill;
     });
-  }, [workers, searchTerm, filterCategory, filterStatus]);
+  }, [workers, searchTerm, filterCategory, filterStatus, filterSkill]);
 
   const hasActiveFilters = useMemo(() => {
-    return Boolean(searchTerm.trim()) || filterCategory !== 'all' || filterStatus !== 'all';
-  }, [searchTerm, filterCategory, filterStatus]);
+    return Boolean(searchTerm.trim()) || filterCategory !== 'all' || filterStatus !== 'all' || filterSkill !== 'all';
+  }, [searchTerm, filterCategory, filterStatus, filterSkill]);
 
   const handleDelete = async (id) => {
     if (!id) {
@@ -84,7 +106,7 @@ const AdminUsersTable = () => {
     }
 
     try {
-      await apiRequest(`/api/manageusers/deleteuser/${id}`, { method: 'DELETE' });
+      await apiRequest(`/api/admin/workers/${id}`, { method: 'DELETE' });
       await loadWorkers();
     } catch (err) {
       console.error('Failed to delete worker', err);
@@ -92,22 +114,84 @@ const AdminUsersTable = () => {
     }
   };
 
+  const openWorkerForm = async (worker, viewOnly = false) => {
+    if (!worker?.id) {
+      console.warn('Worker data is incomplete');
+      return;
+    }
+
+    try {
+      const payload = worker.fullData
+        ? worker
+        : await apiRequest(`/api/admin/workers/${worker.id}`);
+      navigate('/admin/worker-registration', {
+        state: {
+          editWorker: payload,
+          viewOnly
+        }
+      });
+    } catch (err) {
+      console.error('Failed to load worker detail', err);
+      setError(err.message || 'ไม่สามารถเปิดรายละเอียดพนักงานได้');
+    }
+  };
 
   const handleEdit = (worker) => {
-    // สั่งให้เปลี่ยนหน้าไปที่ /admin/users/edit
-    // พร้อมแนบข้อมูลพนักงาน (worker) ไปด้วยในชื่อ state: { editWorker: ... }
-    // เพื่อให้หน้า AdminUserTableDataEdit รับไปแสดงผลต่อได้
-    navigate('/admin/users/edit', { 
-      state: { editWorker: worker } 
-    });
+    openWorkerForm(worker, false);
   };
 
   const handleView = (worker) => {
-    // สั่งให้เปลี่ยนหน้าไปที่ /admin/users/view
-    // พร้อมแนบข้อมูลพนักงานไปด้วยในชื่อ state: { worker: ... }
-    navigate('/admin/users/view', { 
-      state: { worker: worker } 
-    });
+    openWorkerForm(worker, true);
+  };
+
+  const handlePromote = async (worker) => {
+    if (!worker?.id) return;
+    if (worker.status === 'permanent') return;
+    const hasPassedAssessment = worker.assessmentPassed === true ||
+      (typeof worker.score === 'number' && worker.score >= 60);
+
+    if (!hasPassedAssessment) {
+      setError(workerErrorMessages.assessment_not_passed);
+      return;
+    }
+    if (!window.confirm('ยืนยันเปลี่ยนสถานะเป็นพนักงานประจำ?')) {
+      return;
+    }
+
+    try {
+      const updated = await apiRequest(`/api/admin/workers/${worker.id}/status`, {
+        method: 'PATCH',
+        body: { status: 'permanent' }
+      });
+      setWorkers(prev => prev.map(item => (item.id === worker.id ? { ...item, ...updated } : item)));
+    } catch (err) {
+      console.error('Failed to update worker status', err);
+      const messageKey = err?.data?.message || err?.message;
+      setError(workerErrorMessages[messageKey] || err?.message || 'ไม่สามารถอัปเดตสถานะพนักงานได้');
+    }
+  };
+
+  const handleAssessmentAccessToggle = async (worker) => {
+    if (!worker?.id) return;
+    const nextEnabled = !Boolean(worker.assessmentEnabled);
+    const confirmMessage = nextEnabled
+      ? 'ยืนยันเปิดให้เข้าสอบทักษะสำหรับพนักงานคนนี้?'
+      : 'ยืนยันปิดการเข้าสอบทักษะสำหรับพนักงานคนนี้?';
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      const updated = await apiRequest(`/api/admin/workers/${worker.id}/assessment-access`, {
+        method: 'PATCH',
+        body: { enabled: nextEnabled }
+      });
+      setWorkers(prev => prev.map(item => (item.id === worker.id ? { ...item, ...updated } : item)));
+    } catch (err) {
+      console.error('Failed to toggle assessment access', err);
+      setError(err?.message || 'ไม่สามารถเปลี่ยนสถานะการเข้าสอบได้');
+    }
   };
 
   return (
@@ -152,16 +236,16 @@ const AdminUsersTable = () => {
             </div>
             <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="all">ทุกประเภท</option>
-              <option value="ช่างโครงสร้าง">ช่างโครงสร้าง</option>
-              <option value="ช่างประปา">ช่างประปา</option>
-              <option value="ช่างหลังคา">ช่างหลังคา</option>
-              <option value="ช่างก่ออิฐฉาบปูน">ช่างก่ออิฐฉาบปูน</option>
-              <option value="ช่างประตูหน้าต่างอลูมิเนียม">ช่างประตูหน้าต่างอลูมิเนียม</option>
-              <option value="ช่างฝ้าเพดาล">ช่างฝ้าเพดาล</option>
-              <option value="ช่างไฟฟ้า">ช่างไฟฟ้า</option>
-              <option value="ช่างกระเบื้อง">ช่างกระเบื้อง</option>
+              <option value="structure">ช่างโครงสร้าง</option>
+              <option value="plumbing">ช่างประปา</option>
+              <option value="roofing">ช่างหลังคา</option>
+              <option value="masonry">ช่างก่ออิฐฉาบปูน</option>
+              <option value="aluminum">ช่างประตูหน้าต่างอลูมิเนียม</option>
+              <option value="ceiling">ช่างฝ้าเพดาล</option>
+              <option value="electric">ช่างไฟฟ้า</option>
+              <option value="tiling">ช่างกระเบื้อง</option>
             </select>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ marginLeft: '0.5rem' }}>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="user-filter-select">
               <option value="all">ทุกสถานะ</option>
               <option value="permanent">ผ่านโปร (Permanent)</option>
               <option value="probation">ทดลองงาน (Probation)</option>
@@ -176,6 +260,7 @@ const AdminUsersTable = () => {
             <div className="col col-password">รหัสผ่าน</div>
             <div className="col col-phone">เบอร์โทร</div>
             <div className="col col-role">Role</div>
+            <div className="col col-status">สถานะ</div>
             <div className="col col-actions">จัดการ</div>
           </div>
           <div className="admin-workers-table__body">
@@ -188,16 +273,32 @@ const AdminUsersTable = () => {
                 {hasActiveFilters ? 'ไม่มีข้อมูลที่ตรงกับการค้นหา/ตัวกรอง' : 'ยังไม่มีข้อมูลพนักงานในระบบ' }
               </div>
             ) : (
-              filteredWorkers.map(worker => (
+              filteredWorkers.map(worker => {
+                const isProbation = worker.status === 'probation' || worker.status === 'active';
+                const hasPassedAssessment = worker.assessmentPassed === true ||
+                  (typeof worker.score === 'number' && worker.score >= 60);
+                const canPromote = isProbation && hasPassedAssessment;
+                const assessmentOpen = Boolean(worker.assessmentEnabled);
+                const promoteTitle = !isProbation
+                  ? 'พนักงานประจำแล้ว'
+                  : hasPassedAssessment
+                    ? 'เลื่อนเป็นพนักงานประจำ'
+                    : 'ยังไม่ผ่านการสอบทักษะ';
+
+                return (
                 <div key={worker.id} className="admin-workers-table__row">
                   <div className="col col-name" data-label="ชื่อ-นามสกุล">
-                    <span className="worker-name">{worker.full_name}</span>
+                    <span className="worker-name">{worker.name}</span>
                   </div>
                   <div className="col col-email" data-label="อีเมล">{worker.email || '—'}</div>
-                  {/* Password ไม่ควรแสดง หรือใส่เป็น **** ไว้ */}
-                  <div className="col col-password" data-label="รหัสผ่าน">******</div>
+                  <div className="col col-password" data-label="รหัสผ่าน">{worker.passwordHash || '—'}</div>
                   <div className="col col-phone" data-label="เบอร์โทร">{worker.phone || '—'}</div>
                   <div className="col col-role" data-label="Role">{worker.role || '—'}</div>
+                  <div className="col col-status" data-label="สถานะ">
+                    <span className={STATUS_BADGE_CLASSES[worker.status] || 'status-badge'}>
+                      {STATUS_LABELS[worker.status] || '—'}
+                    </span>
+                  </div>
                   <div className="col col-actions" data-label="จัดการ">
                     <button
                       type="button"
@@ -233,7 +334,8 @@ const AdminUsersTable = () => {
                     </button>
                   </div>
                 </div>
-              ))
+              );
+            })
             )}
           </div>
         </div>

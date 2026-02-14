@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../pm/WKDashboard.css';
 
@@ -25,8 +25,11 @@ const WorkerSettings = () => {
 
   const [loading, setLoading] = useState(true);
   
-  // --- State สำหรับ Modal Logout ---
+  // State สำหรับ Modal Logout
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // ✅ State ใหม่: สำหรับ Modal แจ้งเตือน (Success / Error)
+  const [infoModal, setInfoModal] = useState({ show: false, type: '', message: '' });
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
@@ -51,8 +54,10 @@ const WorkerSettings = () => {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. เช็ครหัสผ่านไม่ตรงกัน -> เปิด Modal Error
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("รหัสผ่านใหม่ไม่ตรงกัน");
+      setInfoModal({ show: true, type: 'error', message: 'รหัสผ่านใหม่ไม่ตรงกัน กรุณาระบุใหม่อีกครั้ง' });
       return;
     }
     
@@ -63,11 +68,15 @@ const WorkerSettings = () => {
             currentPassword: passwordData.currentPassword,
             newPassword: passwordData.newPassword
         });
-        alert("เปลี่ยนรหัสผ่านสำเร็จ!");
+        
+        // 2. สำเร็จ -> เปิด Modal Success
+        setInfoModal({ show: true, type: 'success', message: 'เปลี่ยนรหัสผ่านสำเร็จ!' });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
     } catch (err) {
         console.error(err);
-        alert(err.response?.data?.error || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
+        // 3. เกิดข้อผิดพลาด -> เปิด Modal Error
+        setInfoModal({ show: true, type: 'error', message: err.response?.data?.error || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน" });
     }
   };
 
@@ -78,7 +87,6 @@ const WorkerSettings = () => {
       else navigate('/dashboard');
   };
 
-  // --- Logic Logout ---
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
   };
@@ -89,9 +97,14 @@ const WorkerSettings = () => {
     navigate('/login');
   };
 
+  // ฟังก์ชันปิด Modal แจ้งเตือน
+  const closeInfoModal = () => {
+      setInfoModal({ ...infoModal, show: false });
+  };
+
   // Styles Modal
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' };
-  const modalContentStyle = { background: 'white', padding: '25px', borderRadius: '12px', width: '350px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' };
+  const modalContentStyle = { background: 'white', padding: '30px', borderRadius: '12px', width: '350px', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' };
   const btnModalStyle = { padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', margin: '0 5px' };
 
   if (loading) return <div style={{padding:'20px'}}>กำลังโหลดข้อมูล...</div>;
@@ -112,7 +125,33 @@ const WorkerSettings = () => {
         </div>
       )}
 
-      {/* Sidebar - ดีไซน์เดียวกับ Dashboard */}
+      {/* ✅ === Info/Success/Error Modal (ป็อปอัพแจ้งเตือนใหม่) === */}
+      {infoModal.show && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <div style={{ fontSize: '40px', marginBottom: '15px' }}>
+                    {infoModal.type === 'success' ? '✅' : '❌'}
+                </div>
+                <h3 style={{
+                    color: infoModal.type === 'success' ? '#22c55e' : '#ef4444', 
+                    margin: '0 0 15px'
+                }}>
+                    {infoModal.type === 'success' ? 'สำเร็จ' : 'แจ้งเตือน'}
+                </h3>
+                <p style={{ color: '#64748b', fontSize: '16px', marginBottom: '25px', lineHeight: '1.5' }}>
+                    {infoModal.message}
+                </p>
+                <button 
+                    onClick={closeInfoModal} 
+                    style={{...btnModalStyle, background: '#3b82f6', color: 'white', width: '100%', padding: '12px'}}
+                >
+                    ตกลง
+                </button>
+            </div>
+        </div>
+      )}
+
+      {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
           Settings
@@ -120,7 +159,6 @@ const WorkerSettings = () => {
         <nav className="menu">
           <button className="menu-item" onClick={handleGoBack}>หน้าหลัก</button>
           
-          {/* แสดงปุ่มสอบวัดระดับเฉพาะ Worker */}
           {user.role === 'worker' && (
              <button className="menu-item" onClick={() => navigate('/worker/test')}>สอบวัดระดับ</button>
           )}

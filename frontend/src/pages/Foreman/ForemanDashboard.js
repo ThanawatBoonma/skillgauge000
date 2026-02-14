@@ -77,24 +77,22 @@ const ForemanDashboard = () => {
         </div>
       )}
 
+      {/* Sidebar */}
       <aside className="dash-sidebar">
+        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
+          Foreman Portal
+        </div>
         <nav className="menu">
-            <div style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-                Foreman Panel
-            </div>
-            
-            <button className="menu-item active" onClick={() => navigate('/foreman')}>Dashboard</button>
-            <button className="menu-item" onClick={() => navigate('/foreman-reports')}>รายงานสรุปงาน</button>
-            <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่า</button>
-
-            {/* ✅ เรียกใช้ handleLogoutClick เพื่อเปิด Modal */}
-            <button 
-              className="menu-item" 
-              onClick={handleLogoutClick}
-              style={{ marginTop: '20px', color: '#ef4444', border: '1px solid #fee2e2', background: '#fef2f2' }}
-            >
-              ออกจากระบบ
-            </button>
+          <button className="menu-item" onClick={() => navigate('/foreman')}>หน้าหลัก</button>
+          
+          <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่าบัญชี</button>
+          <button 
+            className="menu-item logout-btn" 
+            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
+            onClick={handleLogoutClick}
+          >
+            ออกจากระบบ
+          </button>
         </nav>
       </aside>
 

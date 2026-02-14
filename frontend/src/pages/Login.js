@@ -160,10 +160,10 @@ const Login = () => {
               </div>
             )}
             <div className="login-row">
-              <label className="login-label">Username / Email</label>
+              <label className="login-label">Email</label>
               <input 
                 className="login-input" 
-                placeholder="เบอร์โทรศัพท์ (Admin) หรืออีเมล" 
+                placeholder="อีเมล" 
                 value={username} 
                 onChange={e => setUsername(e.target.value)} 
               />
@@ -190,9 +190,7 @@ const Login = () => {
                 </button>
               </div>
             </div>
-            <div className="login-links">
-              <Link to="#">Forgot password</Link>
-            </div>
+            
             <button className="login-submit" type="button" onClick={onLogin}>Login</button>
             <div className="login-footer-link">
               ต้องการบัญชีใหม่? กรุณาติดต่อผู้ดูแลระบบเพื่อสร้างบัญชีให้คุณ

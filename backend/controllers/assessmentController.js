@@ -44,7 +44,7 @@ exports.submitAssessment = async (req, res) => {
             theoryWeighted,
             parseFloat(practicalWeighted.toFixed(2)),
             parseFloat(totalScore.toFixed(2)),
-            resultStatus.label,
+            resultStatus.numeric,
             comment || '' 
         );
 
@@ -55,8 +55,8 @@ exports.submitAssessment = async (req, res) => {
             data: {
                 isPass: resultStatus.isPass,
                 totalScore: totalScore.toFixed(2),
-                theoryScore: theoryWeighted.toFixed(2),       // ✅ เพิ่มส่งกลับ
-                practicalScore: practicalWeighted.toFixed(2), // ✅ เพิ่มส่งกลับ
+                theoryScore: theoryWeighted.toFixed(2),       
+                practicalScore: practicalWeighted.toFixed(2), 
                 finalLevel: resultStatus.numeric,
                 targetLevel: targetLevel
             }
