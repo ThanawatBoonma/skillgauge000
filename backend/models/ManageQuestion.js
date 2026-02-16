@@ -1,51 +1,87 @@
 // models/ManageQuestion.js
 const pool = require('../config/db');
+// Map ชื่อหมวดหมู่ -> ชื่อตารางใน Database
+const TABLE_MAP = {
+  structure: 'question_Structural',
+  electric: 'question_Electric',
+  plumbing: 'question_Plumbing',
+  masonry: 'question_Masonry',
+  aluminum: 'question_Aluminum',
+  ceiling: 'question_Ceiling',
+  roofing: 'question_Roofing',
+  tiling: 'question_Tiling'
+};
 
-// 1. ดึงข้อสอบทั้งหมด
-exports.findAll = async () => {
-  const sql = 'SELECT * FROM question_Structural ORDER BY id DESC';
+// Helper: หาชื่อตารางจาก category
+const getTableName = (category) => TABLE_MAP[category] || 'question_Structural';
+
+// 1. ดึงข้อสอบทั้งหมด (รับ category เข้ามา)
+exports.findAll = async (category) => {
+  const tableName = getTableName(category);
+  const sql = `SELECT * FROM ${tableName} ORDER BY id DESC`;
   const [rows] = await pool.query(sql);
   return rows;
 };
 
-// 2. เพิ่มข้อสอบหลายข้อพร้อมกัน (Bulk Insert)
-// รับค่าเป็น Array ของ Array values [[text, a, b, ...], [text, a, b, ...]]
-exports.createBulk = async (questionsValues) => {
+// 2. เพิ่มข้อสอบ (Bulk Insert)
+exports.createBulk = async (questionsValues, category) => {
+  const tableName = getTableName(category);
   const sql = `
-    INSERT INTO question_Structural 
+    INSERT INTO ${tableName} 
     (question_text, choice_a, choice_b, choice_c, choice_d, answer, difficulty_level, skill_type) 
     VALUES ?
   `;
-  // syntax ของ mysql2 สำหรับ bulk insert คือส่ง [ [array1], [array2] ] ไปใน query
   const [result] = await pool.query(sql, [questionsValues]);
   return result;
 };
 
 // 3. แก้ไขข้อสอบ
-exports.update = async (id, data) => {
+exports.update = async (id, data, category) => {
+  const tableName = getTableName(category);
   const {
     question_text, choice_a, choice_b, choice_c, choice_d,
     answer, difficulty_level, skill_type
   } = data;
 
   const sql = `
-    UPDATE question_Structural SET
+    UPDATE ${tableName} SET
       question_text=?, choice_a=?, choice_b=?, choice_c=?, choice_d=?,
       answer=?, difficulty_level=?, skill_type=?
     WHERE id = ?
   `;
-
   const [result] = await pool.query(sql, [
     question_text, choice_a, choice_b, choice_c, choice_d,
     answer, difficulty_level, skill_type, id
   ]);
-
   return result.affectedRows > 0;
 };
 
 // 4. ลบข้อสอบ
-exports.delete = async (id) => {
-  const sql = 'DELETE FROM question_Structural WHERE id = ?';
+exports.delete = async (id, category) => {
+  const tableName = getTableName(category);
+  const sql = `DELETE FROM ${tableName} WHERE id = ?`;
   const [result] = await pool.query(sql, [id]);
   return result.affectedRows > 0;
+};
+
+// 5. ดึงค่า Setting ตามระดับความยาก
+exports.getSettingByLevel = async (level) => {
+  const sql = 'SELECT * FROM exam_settings WHERE difficulty_level = ?';
+  const [rows] = await pool.query(sql, [level]);
+  return rows[0] || null; // ถ้าไม่มีส่ง null
+};
+
+// 6. บันทึก Setting (Upsert: ถ้ามี update ถ้าไม่มี insert)
+exports.saveSetting = async (data) => {
+  const { difficulty_level, passing_score, question_count, duration_minutes } = data;
+  const sql = `
+    INSERT INTO exam_settings (difficulty_level, passing_score, question_count, duration_minutes)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+    passing_score = VALUES(passing_score),
+    question_count = VALUES(question_count),
+    duration_minutes = VALUES(duration_minutes)
+  `;
+  const [result] = await pool.query(sql, [difficulty_level, passing_score, question_count, duration_minutes]);
+  return result;
 };

@@ -1,7 +1,7 @@
 const manageUser = require('../models/manageUser');
 
-// ดึงรายชื่อบุคลากรทั้งหมด
-exports.getAllPersonnel = async (req, res) => {
+// 1. ดึงรายชื่อบุคลากรทั้งหมด
+const getAllPersonnel = async (req, res) => {
   try {
     const users = await manageUser.findAllExceptAdmin();
     res.json(users);
@@ -11,8 +11,8 @@ exports.getAllPersonnel = async (req, res) => {
   }
 };
 
-// แก้ไขข้อมูลบุคลากร
-exports.updatePersonnel = async (req, res) => {
+// 2. แก้ไขข้อมูลบุคลากร
+const updatePersonnel = async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -29,8 +29,8 @@ exports.updatePersonnel = async (req, res) => {
   }
 };
 
-// ลบบุคลากร
-exports.deletePersonnel = async (req, res) => {
+// 3. ลบบุคลากร
+const deletePersonnel = async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -45,4 +45,11 @@ exports.deletePersonnel = async (req, res) => {
     console.error('Delete User Error:', err);
     res.status(500).json({ error: 'Server error' });
   }
+};
+
+// --- จุดสำคัญ: Export รวมกันตรงนี้ ---
+module.exports = {
+  getAllPersonnel,
+  updatePersonnel,
+  deletePersonnel
 };

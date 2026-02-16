@@ -1,36 +1,50 @@
-.dash-layout {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    gap: 0;
-    min-height: calc(100vh - 74px);
-    background: #f6f8fb;
-    font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+/* frontend/src/pages/AdminDashboard.css */
+
+/* บังคับให้เมนูที่มี class "horizontal" เรียงเป็นแนวนอน */
+.menu.horizontal {
+    display: flex !important;
+    flex-direction: row !important; /* สั่งให้เรียงแนวนอน */
+    flex-wrap: wrap;                /* ถ้าจอเล็กให้ปัดตกบรรทัด */
+    gap: 10px;
+    padding: 10px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e2e6ec; /* เส้นขีดคั่นด้านล่าง */
+    background-color: transparent;
 }
 
-.menu horizontal {
-    font-family: "Inter", "Noto Sans Thai", sans-serif;
+/* ปรับขนาดปุ่มเมนู */
+.menu.horizontal .menu-item {
+    width: auto !important;         /* ให้ขนาดพอดีตัวหนังสือ ไม่ยืดเต็มจอ */
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
+    white-space: nowrap;            /* ห้ามตัดคำ */
 }
 
-.dash-topbar .phone {
-    margin-left: 2rem;
+/* ปรับสีปุ่มตอนกดเลือก (Active) */
+.menu.horizontal .menu-item.active {
+    background-color: #0e4da4 !important; /* สีน้ำเงินเข้ม */
+    color: #fff !important;
+    border-color: #0e4da4 !important;
 }
 
-@media (max-width: 800px) {
-    .dash-layout { grid-template-columns: 1fr; }
-    /* Keep sidebar visible on small screens and render it above content as a
-         top horizontal menu so mobile shows the admin controls like desktop. */
-    .dash-sidebar {
-        display: block;
-        grid-column: 1 / -1;
-        border-right: none;
-        border-bottom: 1px solid #e2e6ec;
-        border-radius: 12px;
-        margin: 0.75rem 1rem;
-        padding: 0.6rem;
-        background: #eaf1fb;
+/* ปรับสี Icon ในปุ่ม */
+.menu.horizontal .menu-item .icon {
+    display: flex;
+    align-items: center;
+}
+
+/* (เผื่อไว้) ถ้าหน้าจอเล็กมากๆ ให้ปุ่มเล็กลงหน่อย */
+@media (max-width: 600px) {
+    .menu.horizontal {
+        justify-content: center;
     }
-    .menu { flex-direction: row; gap: 0.5rem; overflow-x: auto; padding: 0 0.25rem; }
-    .menu-item { min-width: 140px; padding: 0.6rem 0.9rem; text-align: center; }
-    .thead, .tr { grid-template-columns: 1fr; }
-    .td { justify-content: space-between; }
+    .menu.horizontal .menu-item {
+        font-size: 0.85rem;
+        padding: 6px 12px !important;
+    }
 }

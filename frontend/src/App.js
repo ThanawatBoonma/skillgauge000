@@ -7,8 +7,10 @@ import Login from './pages/Login';
 // Admin Pages
 import AdminDashboard from './pages/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
-
 import AdminWorkerRegistration from './pages/admin/AdminWorkerRegistration';
+import ViewEditUser from './pages/admin/view_edituser';
+import AdminQuestionForm from './pages/admin/AdminQuestionForm';
+import AdminExamset from './pages/admin/AdminExamset';
 
 // PM Pages (ย้ายเข้า folder pm)
 import WKDashboard from './pages/pm/WKDashboard';
@@ -49,6 +51,10 @@ function App() {
             {/* Admin Routes */}
             <Route path="admin/worker-registration" element={<AdminRoute><AdminWorkerRegistration /></AdminRoute>} />
             <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/view-edit-user" element={<ViewEditUser />} />
+
+            <Route path="/admin/quiz-bank" element={<AdminQuestionForm />} />
+            <Route path="/admin/exam-set" element={<AdminExamset />} />
             
 
             {/* PM Routes */}

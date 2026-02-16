@@ -11,8 +11,8 @@ const pmRoutes = require('./routes/pmRoutes');
 const pool = require('./config/db');
 
 // (ตรวจสอบว่าไฟล์เหล่านี้วางอยู่ที่ root หรือ folder ไหน แก้ path ให้ตรงนะครับ)
-const adminRoutes = require('./adminroutes'); 
-const { refreshWorkerMetadata, ensureAssessmentSchema } = require('./adminmodel'); 
+const adminRoutes = require('./routes/adminroutes'); 
+const { refreshWorkerMetadata, ensureAssessmentSchema } = require('./models/adminmodel');
 
 app.use(express.json());
 app.use(cors({
@@ -49,6 +49,8 @@ app.use('/api/pm', pmRoutes);
 app.use('/api/assessment', require('./routes/assessment'));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+app.use('/api/examset', require('./routes/examsetroutes'));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

@@ -7,7 +7,9 @@ const {
   getAllQuestions, 
   addQuestions, 
   updateQuestion, 
-  deleteQuestion 
+  deleteQuestion,
+  getExamSetting,
+  saveExamSetting
 } = require('../controllers/managequestionController');
 
 // Import Middleware
@@ -28,5 +30,11 @@ router.put('/update/:id', updateQuestion);
 
 // DELETE /api/managequestion/delete/:id -> ลบข้อสอบรายข้อ
 router.delete('/delete/:id', deleteQuestion);
+
+// GET /api/managequestion/setting/:level
+router.get('/setting/:level', getExamSetting); // อย่าลืม import getExamSetting เข้ามาด้านบน
+
+// POST /api/managequestion/setting
+router.post('/setting', saveExamSetting); // อย่าลืม import saveExamSetting เข้ามาด้านบน
 
 module.exports = router;

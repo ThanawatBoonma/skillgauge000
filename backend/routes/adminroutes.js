@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Controller = require('./admincontroller');
+const Controller = require('../controllers/admincontroller');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
@@ -17,8 +17,24 @@ function requireAuth(req, res, next) {
   try {
     const token = getTokenFromHeader(req);
     if (!token) return res.status(401).json({ message: 'missing_token' });
+    
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = { id: payload.sub, roles: payload.roles || [] };
+    
+    
+    let userRoles = [];
+    
+    if (Array.isArray(payload.roles)) {
+      userRoles = payload.roles; // กรณีระบบใหม่ส่งมาเป็น Array
+    } else if (payload.role) {
+      userRoles = [payload.role]; // กรณีระบบเก่าส่งมาเป็น String ตัวเดียว
+    }
+    
+    // ยัด Role ใส่ req.user ให้ Middleware ตัวถัดไปใช้
+    req.user = { 
+      id: payload.sub || payload.id, 
+      roles: userRoles 
+    };
+    
     next();
   } catch (e) { 
     return res.status(401).json({ message: 'invalid_token' }); 
@@ -43,19 +59,6 @@ router.get('/health', (req, res) => res.json({ ok: true }));
 // Tasks
 router.get('/tasks', requireAuth, authorizeRoles('admin', 'project_manager'), Controller.getTasks);
 router.post('/tasks', requireAuth, authorizeRoles('admin', 'project_manager'), Controller.createTask);
-
-// Admin Users (System Admins List)
-router.get('/users', requireAuth, authorizeRoles('admin'), Controller.getUsers);
-
-// Admin Workers (จัดการพนักงาน)
-// หมายเหตุ: Create/Update ตัดออกแล้ว ใช้ระบบเดิมของคุณ
-router.get('/workers', requireAuth, authorizeRoles('admin'), Controller.getAllWorkers);
-router.delete('/workers/:id', requireAuth, authorizeRoles('admin'), Controller.deleteWorker);
-router.patch('/workers/:id/status', requireAuth, authorizeRoles('admin'), Controller.updateWorkerStatus);
-router.patch('/workers/:id/assessment-access', requireAuth, authorizeRoles('admin'), Controller.toggleAssessmentAccess);
-
-// Audit Logs
-router.get('/audit-logs', requireAuth, authorizeRoles('admin'), Controller.getAuditLogs);
 
 // Quiz Bank & Assessments (คลังข้อสอบ)
 router.get('/questions', requireAuth, authorizeRoles('admin'), Controller.getQuestions);
