@@ -25,11 +25,12 @@ const WorkerSettings = () => {
 
   const [loading, setLoading] = useState(true);
   
-  // State สำหรับ Modal Logout
+  // State สำหรับ Modal
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  // ✅ State ใหม่: สำหรับ Modal แจ้งเตือน (Success / Error)
   const [infoModal, setInfoModal] = useState({ show: false, type: '', message: '' });
+  
+  // ✅ เพิ่ม State สำหรับ Modal แจ้งเตือนรอผลสอบ (เพื่อให้เหมือน Sidebar หน้าอื่น)
+  const [showPendingModal, setShowPendingModal] = useState(false);
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
@@ -55,7 +56,6 @@ const WorkerSettings = () => {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
 
-    // 1. เช็ครหัสผ่านไม่ตรงกัน -> เปิด Modal Error
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setInfoModal({ show: true, type: 'error', message: 'รหัสผ่านใหม่ไม่ตรงกัน กรุณาระบุใหม่อีกครั้ง' });
       return;
@@ -69,22 +69,38 @@ const WorkerSettings = () => {
             newPassword: passwordData.newPassword
         });
         
-        // 2. สำเร็จ -> เปิด Modal Success
         setInfoModal({ show: true, type: 'success', message: 'เปลี่ยนรหัสผ่านสำเร็จ!' });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
     } catch (err) {
         console.error(err);
-        // 3. เกิดข้อผิดพลาด -> เปิด Modal Error
         setInfoModal({ show: true, type: 'error', message: err.response?.data?.error || "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน" });
     }
   };
 
-  const handleGoBack = () => {
-      if (user.role === 'worker') navigate('/worker');
-      else if (user.role === 'projectmanager') navigate('/pm');
-      else if (user.role === 'foreman') navigate('/foreman');
-      else navigate('/dashboard');
+  // ✅ Logic เช็คสิทธิ์การสอบ (เพื่อให้ปุ่มใน Sidebar ทำงานเหมือนหน้าอื่น)
+  const handleStartTest = async () => {
+    if (!user || !user.id) return;
+
+    try {
+        const API = 'http://localhost:4000';
+        const res = await axios.get(`${API}/api/skillAssessment/status?user_id=${user.id}`);
+        const { status, nextLevel } = res.data;
+
+        if (status === 'pending_practical') {
+            setShowPendingModal(true);
+        } else if (status === 'max_level') {
+            alert("🎉 สุดยอด! คุณอยู่ในระดับทักษะสูงสุดแล้ว (Level 3)");
+        } else if (status === 'can_test') {
+            navigate('/worker/test', { state: { targetLevel: nextLevel } });
+        } else {
+            alert("ไม่สามารถเริ่มทำแบบทดสอบได้ในขณะนี้");
+        }
+
+    } catch (err) {
+        console.error("Error checking exam status:", err);
+        alert("ไม่สามารถเชื่อมต่อระบบตรวจสอบสิทธิ์การสอบได้");
+    }
   };
 
   const handleLogoutClick = () => {
@@ -97,7 +113,6 @@ const WorkerSettings = () => {
     navigate('/login');
   };
 
-  // ฟังก์ชันปิด Modal แจ้งเตือน
   const closeInfoModal = () => {
       setInfoModal({ ...infoModal, show: false });
   };
@@ -125,7 +140,7 @@ const WorkerSettings = () => {
         </div>
       )}
 
-      {/* ✅ === Info/Success/Error Modal (ป็อปอัพแจ้งเตือนใหม่) === */}
+      {/* === Info/Success/Error Modal === */}
       {infoModal.show && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -151,17 +166,39 @@ const WorkerSettings = () => {
         </div>
       )}
 
-      {/* Sidebar */}
+      {/* ✅ === Pending Practical Modal (เพิ่มเพื่อให้เหมือน Sidebar หน้าอื่น) === */}
+      {showPendingModal && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
+                <h3 style={{color: '#f59e0b', margin: '0 0 10px'}}>แจ้งเตือน</h3>
+                <p style={{color: '#555', fontSize: '16px', marginBottom: '25px', lineHeight: '1.5'}}>
+                    กรุณารอผลการประเมินภาคปฏิบัติ
+                </p>
+                <button 
+                    onClick={() => setShowPendingModal(false)} 
+                    style={{...btnModalStyle, background:'#3b82f6', color:'white', width: '100%'}}
+                >
+                    ตกลง
+                </button>
+            </div>
+        </div>
+      )}
+
+      {/* ✅ Sidebar ปรับปรุงให้เหมือน WorkerDashboard */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Settings
+          Worker Portal
         </div>
         <nav className="menu">
-          <button className="menu-item" onClick={handleGoBack}>หน้าหลัก</button>
+          <button className="menu-item" onClick={() => navigate('/worker')}>หน้าหลัก</button>
           
-          {user.role === 'worker' && (
-             <button className="menu-item" onClick={() => navigate('/worker/test')}>สอบวัดระดับ</button>
-          )}
+          {/* ใช้ handleStartTest แทนการ navigate ตรงๆ เพื่อเช็คสิทธิ์ */}
+          <button className="menu-item" onClick={handleStartTest}>สอบวัดระดับ</button>
+          
+          <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
+
+          <button className="menu-item" onClick={() => navigate('/worker/task-history')}>ประวัติการทำงาน</button>
 
           <button className="menu-item active">ตั้งค่าบัญชี</button>
           

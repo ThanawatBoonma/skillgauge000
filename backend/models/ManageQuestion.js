@@ -85,3 +85,20 @@ exports.saveSetting = async (data) => {
   const [result] = await pool.query(sql, [difficulty_level, passing_score, question_count, duration_minutes]);
   return result;
 };
+
+// 7. ดึงค่าเวลา timewait
+exports.getTimeWait = async () => {
+  const sql = 'SELECT time_days FROM timewait WHERE id = 1';
+  const [rows] = await pool.query(sql);
+  return rows[0] ? rows[0].time_days : 30; // คืนค่าเริ่มต้น 30 ถ้าหาไม่เจอ
+};
+
+// 8. อัปเดตเวลา timewait (ใช้ Upsert กันพลาด)
+exports.updateTimeWait = async (days) => {
+  const sql = `
+    INSERT INTO timewait (id, time_days) VALUES (1, ?)
+    ON DUPLICATE KEY UPDATE time_days = VALUES(time_days)
+  `;
+  const [result] = await pool.query(sql, [days]);
+  return result;
+};

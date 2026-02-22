@@ -22,6 +22,8 @@ import WKAssignWorker from './pages/pm/WKAssignWorker';
 import ProjectDetail from './pages/pm/ProjectDetail';
 import PMSettings from './pages/pm/PMSettings';
 import TaskAssessment from './pages/pm/task_assessment';
+import ViewTaskWk from './pages/pm/viewtaskwk';
+import ViewTaskWkDetail from './pages/pm/viewtaskwkdetail';
 
 // Foreman Pages (ย้ายเข้า folder Foreman)
 import ForemanAssessment from './pages/Foreman/ForemanAssessment';
@@ -29,12 +31,17 @@ import ForemanDashboard from './pages/Foreman/ForemanDashboard';
 import ForemanReportSystem from './pages/Foreman/ForemanReportSystem';
 import ForemanSettings from './pages/Foreman/ForemanSettings';
 import FMTaskDetail from './pages/Foreman/fmtask_detail';
+import FMAssessmentHistory from './pages/Foreman/FMAssessmenthistory';
+import FMAssessmentHistoryDetail from './pages/Foreman/FMAssessmenthistorydetail';
 
 // Worker Pages (ย้ายเข้า folder Worker)
 import WorkerDashboard from './pages/Worker/WorkerDashboard';
 import SkillAssessmentTest from './pages/Worker/SkillAssessmentTest'; 
 import WorkerTaskDetail from './pages/Worker/WorkerTaskDetail';
 import WorkerSettings from './pages/Worker/WorkerSettings';
+import WorkerHistory from './pages/Worker/WorkerHistory';
+import TaskWorkerHistory from './pages/Worker/taskworkerhistory';
+import TaskWorkerHistoryDetail from './pages/Worker/taskworkerhistorydetail';
 
 import './App.css';
 
@@ -67,6 +74,9 @@ function App() {
             <Route path="/project-detail" element={<ProjectDetail />} />
             <Route path="/pm-settings" element={<PMSettings />} />
             <Route path="/task-assessment" element={<TaskAssessment />} />
+            <Route path="/pm/viewtaskwk" element={<ViewTaskWk />} />
+            <Route path="/pm/viewtaskwkdetail" element={<ViewTaskWkDetail />} />
+            
 
             {/* Foreman Routes */}
             <Route path="/foreman" element={<ForemanDashboard />} />
@@ -74,11 +84,16 @@ function App() {
             <Route path="/foreman-reports" element={<ForemanReportSystem />} />
             <Route path="/foreman-settings" element={<ForemanSettings />} />
             <Route path="/foreman/task-detail" element={<FMTaskDetail />} />
+            <Route path="/foreman/assessment-history" element={<FMAssessmentHistory />} />
+            <Route path="/foreman/assessment-history-detail" element={<FMAssessmentHistoryDetail />} />
 
             {/* Worker Routes */}
             <Route path="/worker" element={<WorkerDashboard />} />
             <Route path="/worker/task-detail" element={<WorkerTaskDetail />} />
             <Route path="/worker-settings" element={<WorkerSettings />} />
+            <Route path="/worker/history" element={<WorkerHistory />} />
+            <Route path="/worker/task-history" element={<TaskWorkerHistory />} />
+            <Route path="/worker/task-history-detail" element={<TaskWorkerHistoryDetail />} />
             
             {/* เอาหน้าทำข้อสอบ (worker/test) ออกจากตรงนี้  */}
           </Route>

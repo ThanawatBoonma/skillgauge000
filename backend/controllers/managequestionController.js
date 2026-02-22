@@ -98,3 +98,26 @@ exports.saveExamSetting = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+// ดึงเวลา รอสอบ
+exports.getTimeWait = async (req, res) => {
+  try {
+    const days = await ManageQuestion.getTimeWait();
+    res.json({ time_days: days });
+  } catch (err) {
+    console.error('Get TimeWait Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// บันทึกเวลา รอสอบ (edittime)
+exports.editTimeWait = async (req, res) => {
+  const { time_days } = req.body;
+  try {
+    await ManageQuestion.updateTimeWait(time_days);
+    res.json({ message: 'Time wait updated successfully' });
+  } catch (err) {
+    console.error('Edit TimeWait Error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};

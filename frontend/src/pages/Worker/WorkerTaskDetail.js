@@ -13,9 +13,10 @@ const WorkerTaskDetail = () => {
   const user = userStr ? JSON.parse(userStr) : null;
 
   const [photoFile, setPhotoFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null); // ✅ State สำหรับ URL รูปตัวอย่าง
   const [loading, setLoading] = useState(false);
   
-  // ✅ State สำหรับ Modal ยืนยันการส่งงาน
+  // State สำหรับ Modal ยืนยันการส่งงาน
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // ถ้าไม่มีข้อมูลงาน ให้เด้งกลับ
@@ -32,8 +33,19 @@ const WorkerTaskDetail = () => {
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setPhotoFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setPhotoFile(file);
+      
+      // ✅ สร้าง URL สำหรับแสดงตัวอย่างรูปภาพ
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
     }
+  };
+
+  // ✅ ฟังก์ชันลบรูปภาพ
+  const handleRemovePhoto = () => {
+      setPhotoFile(null);
+      setPreviewUrl(null);
   };
 
   // 1. กดปุ่มส่งงาน -> เปิด Modal
@@ -88,7 +100,7 @@ const WorkerTaskDetail = () => {
   return (
     <div className="dash-layout">
       
-      {/* ✅ === Confirm Submit Modal (ป็อปอัพยืนยันส่งงาน) === */}
+      {/* === Confirm Submit Modal (ป็อปอัพยืนยันส่งงาน) === */}
       {showConfirmModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -165,7 +177,7 @@ const WorkerTaskDetail = () => {
                     </div>
                 </div>
 
-                {/* สถานที่ปฏิบัติงาน (บล็อกยาว) */}
+                {/* สถานที่ปฏิบัติงาน */}
                 <div style={{ marginBottom: '15px', padding: '15px', background: '#f0f9ff', borderRadius: '8px', border: '1px dashed #bae6fd' }}>
                     <strong style={{ color: '#0369a1', display:'block', marginBottom:'5px' }}>📍 สถานที่ปฏิบัติงาน:</strong>
                     <p style={{ margin: 0, color: '#334155', fontSize: '16px', lineHeight: '1.5' }}>
@@ -173,7 +185,7 @@ const WorkerTaskDetail = () => {
                     </p>
                 </div>
 
-                {/* รายละเอียดเพิ่มเติม (บล็อกยาว) */}
+                {/* รายละเอียดเพิ่มเติม */}
                 <div style={{ padding: '15px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
                     <strong style={{ color: '#475569', display:'block', marginBottom:'5px' }}>📝 รายละเอียดเพิ่มเติม:</strong>
                     <p style={{ margin: 0, color: '#64748b', lineHeight: '1.5' }}>
@@ -188,21 +200,48 @@ const WorkerTaskDetail = () => {
                 
                 <div style={{ marginBottom: '30px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155' }}>แนบรูปภาพผลงาน (Photo Evidence)</label>
-                    <div style={{ border: '2px dashed #cbd5e1', padding: '30px', borderRadius: '8px', textAlign: 'center', background: '#f8fafc', position: 'relative' }}>
-                        <input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '30px' }}>📷</span>
-                            {photoFile ? (
-                                <div style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '16px' }}>{photoFile.name}</div>
-                            ) : (
-                                <div style={{ color: '#64748b' }}>คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</div>
-                            )}
-                        </div>
+                    
+                    <div style={{ border: '2px dashed #cbd5e1', padding: '20px', borderRadius: '8px', textAlign: 'center', background: '#f8fafc', position: 'relative', minHeight: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                        
+                        {/* ✅ ถ้ามีรูป ให้แสดง Preview */}
+                        {previewUrl ? (
+                            <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
+                                <img 
+                                    src={previewUrl} 
+                                    alt="Preview" 
+                                    style={{ width: '100%', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} 
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={handleRemovePhoto}
+                                    style={{ 
+                                        position: 'absolute', top: '-10px', right: '-10px', 
+                                        background: '#ef4444', color: 'white', border: '2px solid white', 
+                                        borderRadius: '50%', width: '30px', height: '30px', 
+                                        cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                                <div style={{ marginTop: '10px', color: '#0284c7', fontWeight: 'bold', fontSize: '14px' }}>{photoFile.name}</div>
+                            </div>
+                        ) : (
+                            // ✅ ถ้าไม่มีรูป แสดง input ปกติ
+                            <>
+                                <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                                />
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '40px' }}>📷</span>
+                                    <div style={{ color: '#64748b' }}>คลิกเพื่อเลือกรูปภาพ หรือลากไฟล์มาวางที่นี่</div>
+                                </div>
+                            </>
+                        )}
+
                     </div>
                 </div>
 

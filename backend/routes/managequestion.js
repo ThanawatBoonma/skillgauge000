@@ -9,7 +9,9 @@ const {
   updateQuestion, 
   deleteQuestion,
   getExamSetting,
-  saveExamSetting
+  saveExamSetting,
+  getTimeWait,
+  editTimeWait
 } = require('../controllers/managequestionController');
 
 // Import Middleware
@@ -36,5 +38,8 @@ router.get('/setting/:level', getExamSetting); // อย่าลืม import g
 
 // POST /api/managequestion/setting
 router.post('/setting', saveExamSetting); // อย่าลืม import saveExamSetting เข้ามาด้านบน
+
+router.get('/timewait', getTimeWait);
+router.put('/timewait', editTimeWait);
 
 module.exports = router;

@@ -117,11 +117,11 @@ const ForemanSettings = () => {
       {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Foreman Portal
+          Foreman Panel
         </div>
         <nav className="menu">
           <button className="menu-item" onClick={() => navigate('/foreman')}>หน้าหลัก</button>
-          
+          <button className="menu-item" onClick={() => navigate('/foreman/assessment-history')}>ประวัติการประเมิน</button>          
           <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่าบัญชี</button>
           <button 
             className="menu-item logout-btn" 

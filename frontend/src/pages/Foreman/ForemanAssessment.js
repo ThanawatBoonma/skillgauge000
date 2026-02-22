@@ -8,6 +8,10 @@ const ForemanAssessment = () => {
   const location = useLocation();
   const worker = location.state?.worker;
 
+  // ✅ ดึงข้อมูล Foreman ที่ Login อยู่
+  const userStr = sessionStorage.getItem('user');
+  const foremanUser = userStr ? JSON.parse(userStr) : null;
+
   const displayWorker = worker || { 
     name: 'ตัวอย่าง ชื่อช่าง', 
     roleName: 'ช่างทั่วไป', 
@@ -53,19 +57,23 @@ const ForemanAssessment = () => {
   const [grade, setGrade] = useState('-');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // State สำหรับ Modal ยืนยันก่อนส่ง
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  
-  // ✅ State สำหรับ Modal แสดงผลลัพธ์ (Result)
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultData, setResultData] = useState(null);
 
   useEffect(() => {
+    // เช็คว่า Foreman Login หรือยัง
+    if (!foremanUser) {
+        alert('กรุณาเข้าสู่ระบบก่อนทำการประเมิน');
+        navigate('/login');
+        return;
+    }
+
     const values = Object.values(evaluations);
     if (values.length === 0) return;
     
     const sum = values.reduce((acc, cur) => acc + cur, 0);
-    const maxScore = 18 * 4; // 72
+    const maxScore = 18 * 4; 
     const percent = (sum / maxScore) * 100;
 
     setTotalScore(sum);
@@ -75,7 +83,7 @@ const ForemanAssessment = () => {
     else if (percent >= 60) setGrade('C (พอใช้)');
     else setGrade('D (ต้องปรับปรุง)');
 
-  }, [evaluations]);
+  }, [evaluations, foremanUser, navigate]);
 
   const handleRatingChange = (id, value) => {
     setEvaluations(prev => ({ ...prev, [id]: value }));
@@ -101,16 +109,15 @@ const ForemanAssessment = () => {
         
         const payload = {
             workerId: displayWorker.id,
+            fmId: foremanUser.id,       // ✅ ส่ง ID ของ Foreman ไปด้วย
             onsiteScore: totalScore,    
             onsiteFullScore: 72,        
-            targetLevel: 1,             
             comment: comment            
         };
 
         const res = await axios.post(`${API}/api/assessment/submit`, payload);
 
         if (res.data.success) {
-            // ✅ บันทึกสำเร็จ -> เก็บข้อมูลลง State -> เปิด Modal ผลลัพธ์
             setResultData(res.data.data);
             setShowResultModal(true);
         } else {
@@ -127,10 +134,10 @@ const ForemanAssessment = () => {
 
   const handleFinish = () => {
     setShowResultModal(false);
-    navigate('/foreman'); // กลับหน้า Dashboard
+    navigate('/foreman');
   };
 
-  // Styles
+  // Styles (คงเดิม)
   const modalOverlayStyle = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(3px)' };
   const modalContentStyle = { background: 'white', padding: '30px', borderRadius: '16px', width: '380px', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' };
   const btnModalStyle = { padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', margin: '0 5px', minWidth: '100px' };
@@ -152,7 +159,7 @@ const ForemanAssessment = () => {
         </div>
       )}
 
-      {/* 2. ✅ Modal แสดงผลลัพธ์ (ตามที่ขอ) */}
+      {/* 2. Modal แสดงผลลัพธ์ */}
       {showResultModal && resultData && (
         <div style={modalOverlayStyle}>
             <div style={{...modalContentStyle, width: '450px', padding: '40px', border: resultData.isPass ? '4px solid #22c55e' : '4px solid #ef4444'}}>
@@ -183,8 +190,14 @@ const ForemanAssessment = () => {
                 <div style={{ background: resultData.isPass ? '#dcfce7' : '#fee2e2', padding: '15px', borderRadius: '12px', marginBottom: '25px' }}>
                     <div style={{ fontSize: '18px', color: '#475569', marginBottom: '5px' }}>ผลการประเมินระดับ</div>
                     <div style={{ fontSize: '36px', fontWeight: 'bold', color: resultData.isPass ? '#166534' : '#991b1b' }}>
-                        {resultData.isPass ? `ระดับ ${resultData.targetLevel || 1}` : 'ไม่ผ่าน'}
+                        {resultData.isPass ? `ระดับ ${resultData.finalLevel}` : 'ไม่ผ่าน'}
                     </div>
+                    {/* แสดงระดับก่อนหน้า ถ้าไม่ผ่าน */}
+                    {!resultData.isPass && (
+                         <div style={{fontSize: '14px', color: '#7f1d1d', marginTop: '5px'}}>
+                             (คงอยู่ที่ระดับ {resultData.finalLevel})
+                         </div>
+                    )}
                 </div>
 
                 <button 
@@ -197,7 +210,7 @@ const ForemanAssessment = () => {
         </div>
       )}
 
-      {/* Main Content (เหมือนเดิม) */}
+      {/* Main Content */}
       <aside className="dash-sidebar">
         <nav className="menu">
             <div style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>Foreman Panel</div>
@@ -215,7 +228,7 @@ const ForemanAssessment = () => {
         </header>
 
         <section className="dash-content" style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '50px' }}>
-          {/* Header Card คะแนน Realtime */}
+          {/* ส่วนแสดงคะแนน Realtime */}
           <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
              <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                 <div style={{ width: '50px', height: '50px', background: '#3b82f6', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: '20px', fontWeight: 'bold' }}>

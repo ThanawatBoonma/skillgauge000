@@ -11,11 +11,13 @@ const WorkerDashboard = () => {
   const [skillLevel, setSkillLevel] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // --- State สำหรับ Modal ---
+  // --- State สำหรับ Modals ---
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  
-  // ✅ เพิ่ม State สำหรับ Modal แจ้งเตือนรอผลประเมิน
   const [showPendingModal, setShowPendingModal] = useState(false);
+  
+  // ✅ เพิ่ม State สำหรับ Modal Cooldown
+  const [showWaitModal, setShowWaitModal] = useState(false);
+  const [waitDaysLeft, setWaitDaysLeft] = useState(0);
 
   useEffect(() => {
     const storedUserStr = sessionStorage.getItem('user');
@@ -27,6 +29,7 @@ const WorkerDashboard = () => {
   }, []);
 
   const fetchDashboardData = async (userId) => {
+    // โค้ดเดิม
     setLoading(true);
     try {
         const API = 'http://localhost:4000';
@@ -42,26 +45,34 @@ const WorkerDashboard = () => {
     }
   };
 
-const handleGoToSubmit = () => {
+  const handleGoToSubmit = () => {
      if (assignedTask) {
-        // ✅ ส่งข้อมูลงาน (task object) ไปที่หน้า WorkerTaskDetail
         navigate('/worker/task-detail', { state: { task: assignedTask } });
      } else {
         alert("คุณยังไม่มีงานที่ต้องส่ง");
      }
   };
 
-  // --- Logic เช็คสิทธิ์การสอบ ---
+  // ✅ แก้ไข Logic เช็คสิทธิ์การสอบ
   const handleStartTest = async () => {
     if (!user || !user.id) return;
 
     try {
         const API = 'http://localhost:4000';
+
+        // 1. เช็ค Cooldown ก่อน (ดึง API ตัวใหม่)
+        const cooldownRes = await axios.get(`${API}/api/wkdashboard/check-cooldown?user_id=${user.id}`);
+        if (!cooldownRes.data.canTest) {
+            setWaitDaysLeft(cooldownRes.data.daysLeft);
+            setShowWaitModal(true); // เปิดป็อปอัพแจ้งเตือนเวลา
+            return; // หยุดการทำงานถ้ายังไม่ครบกำหนด
+        }
+
+        // 2. ถ้าครบกำหนดเวลาแล้ว ให้ไปเช็คสถานะเดิม
         const res = await axios.get(`${API}/api/skillAssessment/status?user_id=${user.id}`);
         const { status, nextLevel } = res.data;
 
         if (status === 'pending_practical') {
-            // ✅ เปลี่ยนจาก alert เป็นเปิด Modal
             setShowPendingModal(true);
         } else if (status === 'max_level') {
             alert("🎉 สุดยอด! คุณอยู่ในระดับทักษะสูงสุดแล้ว (Level 3)");
@@ -93,7 +104,7 @@ const handleGoToSubmit = () => {
   return (
     <div className="dash-layout">
       
-      {/* === Logout Modal === */}
+      {/* ... Logout Modal (เดิม) ... */}
       {showLogoutModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -106,7 +117,7 @@ const handleGoToSubmit = () => {
         </div>
       )}
 
-      {/* ✅ === Pending Practical Modal (ป็อปอัพรอผลประเมิน) === */}
+      {/* ... Pending Practical Modal (เดิม) ... */}
       {showPendingModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -116,29 +127,43 @@ const handleGoToSubmit = () => {
                     กรุณารอผลการประเมินภาคปฏิบัติ
                 </p>
                 <div style={{display:'flex', justifyContent:'center'}}>
-                    <button 
-                        onClick={() => setShowPendingModal(false)} 
-                        style={{...btnModalStyle, background:'#3b82f6', color:'white', width: '100%'}}
-                    >
-                        ตกลง
-                    </button>
+                    <button onClick={() => setShowPendingModal(false)} style={{...btnModalStyle, background:'#3b82f6', color:'white', width: '100%'}}>ตกลง</button>
                 </div>
             </div>
         </div>
       )}
 
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Worker Portal
+      {/* ✅ === ป็อปอัพแจ้งเตือนเวลารอ Cooldown (ของใหม่) === */}
+      {showWaitModal && (
+        <div style={modalOverlayStyle}>
+            <div style={modalContentStyle}>
+                <div style={{ fontSize: '45px', marginBottom: '10px' }}>⏰</div>
+                <h3 style={{color: '#ef4444', margin: '0 0 10px'}}>ยังไม่ถึงเวลาทดสอบ</h3>
+                <p style={{color: '#555', fontSize: '15px', marginBottom: '20px', lineHeight: '1.5'}}>
+                    คุณเพิ่งทำแบบทดสอบไป <br/>
+                    กรุณารออีก <strong style={{color: '#ef4444', fontSize: '18px'}}>{waitDaysLeft} วัน</strong> จึงจะสอบใหม่ได้
+                </p>
+                <div style={{display:'flex', justifyContent:'center'}}>
+                    <button onClick={() => setShowWaitModal(false)} style={{...btnModalStyle, background:'#0f172a', color:'white', width: '100%'}}>ตกลง</button>
+                </div>
+            </div>
         </div>
+      )}
+
+      {/* ---------------- Sidebar ---------------- */}
+      <aside className="dash-sidebar">
+        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>Worker Portal</div>
         <nav className="menu">
           <button className="menu-item active" onClick={() => navigate('/worker')}>หน้าหลัก</button>
           <button className="menu-item" onClick={handleStartTest}>สอบวัดระดับ</button>
+          <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
+          <button className="menu-item" onClick={() => navigate('/worker/task-history')}>ประวัติการทำงาน</button>
           <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่าบัญชี</button>
           <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
         </nav>
       </aside>
 
+      {/* ---------------- Main Content ---------------- */}
       <main className="dash-main">
         <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
           <div style={{ marginBottom: '30px' }}>
@@ -148,27 +173,26 @@ const handleGoToSubmit = () => {
 
           <h3 style={{ color: '#334155', marginBottom: '15px', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>ประเมินทักษะ</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-             
-             {/* การ์ดสอบ */}
-             <div onClick={handleStartTest} style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#1e293b', display:'flex', alignItems:'center', gap:'10px' }}>📝 แบบทดสอบวัดทักษะ</h4>
-                <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>ทำแบบทดสอบเพื่อวัดระดับความรู้ทางทฤษฎีและปฏิบัติ</p>
-             </div>
+              
+              <div onClick={handleStartTest} style={{ background: 'white', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s', boxShadow:'0 2px 5px rgba(0,0,0,0.05)' }}>
+                 <h4 style={{ margin: '0 0 8px 0', color: '#1e293b', display:'flex', alignItems:'center', gap:'10px' }}>📝 แบบทดสอบวัดทักษะ</h4>
+                 <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>ทำแบบทดสอบเพื่อวัดระดับความรู้ทางทฤษฎีและปฏิบัติ</p>
+              </div>
 
-             <div style={{ background: '#f8fafc', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>ระดับของคุณ</h4>
-                {skillLevel > 0 ? (
+              <div style={{ background: '#f8fafc', padding: '25px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                 <h4 style={{ margin: '0 0 8px 0', color: '#1e293b' }}>ระดับของคุณ</h4>
+                 {skillLevel > 0 ? (
                     <div>
                         <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb' }}>Level {skillLevel}</span>
                         <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#15803d' }}>คุณอยู่ในระดับทักษะ {skillLevel}</p>
                     </div>
-                ) : (
+                 ) : (
                     <div>
                         <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#64748b' }}>-</span>
                         <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#ef4444' }}>คุณยังไม่มีระดับทักษะ</p>
                     </div>
-                )}
-             </div>
+                 )}
+              </div>
           </div>
 
           <h3 style={{ color: '#334155', marginBottom: '15px', borderBottom:'2px solid #e2e8f0', paddingBottom:'10px' }}>งานของคุณ</h3>
@@ -176,7 +200,7 @@ const handleGoToSubmit = () => {
             {loading ? (
                 <div style={{textAlign:'center', padding:'20px'}}>กำลังโหลดข้อมูลงาน...</div>
             ) : assignedTask ? (
-                <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                <div className="task-card active" style={{ border: '1px solid #bfdbfe', background: '#eff6ff' }}>
                     <div style={{ background: '#3b82f6', padding: '15px 20px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 'bold' }}>งานปัจจุบัน</span>
                         <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: '20px', fontSize: '12px' }}>

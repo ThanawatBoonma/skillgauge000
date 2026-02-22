@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom'; // อย่าลืม import useNavigate
+import { useNavigate } from 'react-router-dom'; 
 import '../Dashboard.css';
 import './AdminQuizBank.css';
 import { apiRequest } from '../../utils/api';
-// Import Component Form
+// Import Component Form (สำหรับ Modal)
 import AdminQuestionForm from './AdminQuestionForm';
 
 const ITEMS_PER_PAGE = 10;
@@ -29,13 +29,17 @@ const DIFFICULTY_OPTIONS = [
 ];
 
 const AdminQuizBank = () => {
-  const navigate = useNavigate(); // เรียกใช้ Hook
+  const navigate = useNavigate();
 
   // --- STATE: Exam Settings ---
   const [currentLevel, setCurrentLevel] = useState('1'); 
   const [settingForm, setSettingForm] = useState({ passing_score: 60, question_count: 60, duration_minutes: 60 });
   const [isSavingSetting, setIsSavingSetting] = useState(false);
   const [isLoadingSetting, setIsLoadingSetting] = useState(false);
+
+  // --- STATE: Time Wait (ช่วงเวลารอสอบถัดไป) ---
+  const [timeWait, setTimeWait] = useState('');
+  const [isSavingTime, setIsSavingTime] = useState(false);
 
   // --- STATE: Question Table ---
   const [selectedCategory, setSelectedCategory] = useState('structure');
@@ -62,16 +66,44 @@ const AdminQuizBank = () => {
     finally { setIsLoadingSetting(false); }
   }, []);
 
-  useEffect(() => { loadExamSetting(currentLevel); }, [currentLevel, loadExamSetting]);
+  const loadTimeWait = useCallback(async () => {
+    try {
+      const res = await apiRequest('/api/managequestion/timewait');
+      if (res && res.time_days !== undefined) {
+        setTimeWait(res.time_days);
+      }
+    } catch (err) { console.error('Load timewait error', err); }
+  }, []);
+
+  useEffect(() => { 
+    loadExamSetting(currentLevel); 
+    loadTimeWait();
+  }, [currentLevel, loadExamSetting, loadTimeWait]);
 
   const handleSaveSetting = async (e) => {
     e.preventDefault();
     setIsSavingSetting(true);
     try {
       await apiRequest('/api/managequestion/setting', { method: 'POST', body: { difficulty_level: currentLevel, ...settingForm } });
-      Swal.fire({ icon: 'success', title: 'บันทึกเรียบร้อย', timer: 1500, showConfirmButton: false });
+      Swal.fire({ icon: 'success', title: 'บันทึกโครงสร้างเรียบร้อย', timer: 1500, showConfirmButton: false });
     } catch (err) { Swal.fire('ผิดพลาด', err.message, 'error'); } 
     finally { setIsSavingSetting(false); }
+  };
+
+  const handleSaveTimeWait = async (e) => {
+    e.preventDefault();
+    setIsSavingTime(true);
+    try {
+      await apiRequest('/api/managequestion/timewait', { 
+        method: 'PUT', 
+        body: { time_days: parseInt(timeWait) || 0 } 
+      });
+      Swal.fire({ icon: 'success', title: 'บันทึกเวลาเรียบร้อย', timer: 1500, showConfirmButton: false });
+    } catch (err) { 
+      Swal.fire('ผิดพลาด', err.message, 'error'); 
+    } finally { 
+      setIsSavingTime(false); 
+    }
   };
 
   // ===================== QUESTION TABLE LOGIC =====================
@@ -146,6 +178,7 @@ const AdminQuizBank = () => {
   return (
     <div className="admin-quiz-bank">
       
+      {/* --- MODAL POPUP --- */}
       {modal.show && (
         <div className="modal-overlay">
            <div className="modal-container">
@@ -165,6 +198,7 @@ const AdminQuizBank = () => {
           <h2>จัดการโครงสร้างข้อสอบและคลังคำถาม</h2>
         </header>
 
+        {/* --- SECTION 1: SETTINGS --- */}
         <div className="quiz-form-card">
           <h3>โครงสร้างข้อสอบ (Exam Settings)</h3>
           <form onSubmit={handleSaveSetting}>
@@ -175,15 +209,15 @@ const AdminQuizBank = () => {
                   <>
                     <div className="form-group">
                       <label>เกณฑ์ผ่าน (%)</label>
-                      <input type="number" value={settingForm.passing_score} onChange={e => setSettingForm({...settingForm, passing_score: e.target.value})} required />
+                      <input type="number" min="0" max="100" value={settingForm.passing_score} onChange={e => setSettingForm({...settingForm, passing_score: e.target.value})} required />
                     </div>
                     <div className="form-group">
                       <label>จำนวนข้อสอบ (ข้อ)</label>
-                      <input type="number" value={settingForm.question_count} onChange={e => setSettingForm({...settingForm, question_count: e.target.value})} required />
+                      <input type="number" min="1" value={settingForm.question_count} onChange={e => setSettingForm({...settingForm, question_count: e.target.value})} required />
                     </div>
                     <div className="form-group">
                       <label>เวลาทำข้อสอบ (นาที)</label>
-                      <input type="number" value={settingForm.duration_minutes} onChange={e => setSettingForm({...settingForm, duration_minutes: e.target.value})} required />
+                      <input type="number" min="1" value={settingForm.duration_minutes} onChange={e => setSettingForm({...settingForm, duration_minutes: e.target.value})} required />
                     </div>
                   </>
                 )}
@@ -204,6 +238,43 @@ const AdminQuizBank = () => {
           </form>
         </div>
 
+        {/* --- SECTION 1.5: TIME WAIT SETTINGS --- */}
+        <div className="quiz-form-card">
+          <h3>ช่วงเวลารอสอบถัดไป</h3>
+          <form onSubmit={handleSaveTimeWait}>
+            <div style={{ 
+              display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', 
+              background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', border: '1px solid #edf2f7' 
+            }}>
+               <div className="form-group" style={{ marginBottom: 0, minWidth: '150px' }}>
+                  <label>ระยะเวลา (วัน)</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    value={timeWait} 
+                    onChange={e => setTimeWait(e.target.value)} 
+                    required 
+                    style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e0', borderRadius: '6px' }}
+                  />
+               </div>
+               <div style={{ flex: 1, minWidth: '250px' }}>
+                  <p style={{ color: '#718096', fontSize: '0.95rem', margin: 0, lineHeight: '1.5' }}>
+                     <strong>หมายเหตุ:</strong> กำหนดจำนวนวันขั้นต่ำที่พนักงานต้องรอเพื่อเข้าทำแบบทดสอบประเมินทักษะอีกครั้ง (ในกรณีที่สอบไม่ผ่าน หรือต้องการสอบเลื่อนระดับ)
+                  </p>
+               </div>
+               <button 
+                 type="submit" 
+                 className="save-setting-btn" 
+                 style={{ width: 'auto', marginTop: 0, padding: '0.7rem 1.5rem' }} 
+                 disabled={isSavingTime}
+               >
+                 {isSavingTime ? 'บันทึก...' : 'บันทึกเวลา'}
+               </button>
+            </div>
+          </form>
+        </div>
+
+        {/* --- SECTION 2: QUESTION TABLE --- */}
         <div className="quiz-form-card quiz-table-card">
           <div className="category-tabs-container">
             {CATEGORY_BUTTONS.map(cat => (
@@ -216,24 +287,22 @@ const AdminQuizBank = () => {
           <div className="quiz-table-header" style={{ marginTop: '20px' }}>
             <h3>รายการข้อสอบ: {CATEGORY_BUTTONS.find(c => c.value === selectedCategory)?.label} ({filteredQuestions.length} ข้อ)</h3>
             <div className="quiz-table-action-box">
-              <button className="pill secondary" onClick={loadQuestions}><i className='bx bx-refresh'></i> รีเฟรช</button>
+               <button className="pill secondary" onClick={loadQuestions}><i className='bx bx-refresh'></i> รีเฟรช</button>
                
-               {/* --- ปุ่มจัดการโครงสร้างใหม่ --- */}
-              <button 
-                className="pill secondary" 
-                onClick={() => navigate('/admin/exam-set', { 
-                  state: { 
-                    category: selectedCategory, // ส่งหมวดหมู่ที่เลือกปัจจุบัน (structure/electric...)
-                    level: currentLevel         // ส่งระดับที่เลือกปัจจุบัน (1/2/3)
-                  } 
-                })}
-                style={{ backgroundColor: '#f0f4f8', color: '#2c3e50', border: '1px solid #dce2e8' }}
-              >
-                <i className='bx bx-cog'></i> จัดการโครงสร้าง
-              </button>
-               {/* --------------------------- */}
+               <button 
+                 className="pill secondary" 
+                 onClick={() => navigate('/admin/exam-set', { 
+                    state: { 
+                      category: selectedCategory, 
+                      level: currentLevel         
+                    } 
+                 })}
+                 style={{ backgroundColor: '#f0f4f8', color: '#2c3e50', border: '1px solid #dce2e8' }}
+               >
+                 <i className='bx bx-cog'></i> จัดการโครงสร้าง
+               </button>
 
-              <button className="pill primary" onClick={handleOpenAdd}><i className='bx bx-plus'></i> เพิ่มข้อสอบใหม่</button>
+               <button className="pill primary" onClick={handleOpenAdd}><i className='bx bx-plus'></i> เพิ่มข้อสอบใหม่</button>
             </div>
           </div>
 

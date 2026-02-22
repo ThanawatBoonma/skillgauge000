@@ -47,3 +47,21 @@ exports.deleteTaskAssessment = async (req, res) => {
         res.status(500).json({ error: 'Server Error' });
     }
 };
+
+// เรียกดึงประวัติการทำงานและจัดฟอร์แมต
+exports.getTaskHistoryForPM = async (req, res) => {
+    try {
+        const history = await PMDashboard.getTaskHistoryAll();
+        
+        const formattedData = history.map(item => ({
+            ...item,
+            date_formatted: item.updated_at ? new Date(item.updated_at).toLocaleDateString('th-TH') : '-',
+            photo_url: item.submission_photo ? `http://localhost:4000/uploads/${item.submission_photo}` : null
+        }));
+
+        res.json(formattedData);
+    } catch (err) {
+        console.error("Get Task History PM Error:", err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+};

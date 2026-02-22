@@ -97,6 +97,7 @@ const PMProjectManager = () => {
         </div>
         <nav className="menu">
           <button className="menu-item" onClick={() => navigate('/pm')}>หน้าหลัก</button>
+          <button className="menu-item" onClick={() => navigate('/pm/viewtaskwk')}>ประวัติการทำงานช่าง</button>
           <button className="menu-item" onClick={() => navigate('/pm-settings')}>ตั้งค่าบัญชี</button>
           <button 
             className="menu-item logout-btn" 
