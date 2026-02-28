@@ -24,6 +24,8 @@ import PMSettings from './pages/pm/PMSettings';
 import TaskAssessment from './pages/pm/task_assessment';
 import ViewTaskWk from './pages/pm/viewtaskwk';
 import ViewTaskWkDetail from './pages/pm/viewtaskwkdetail';
+import PMAssessmentHistory from './pages/pm/PMAssessmenthistory';
+import PMAssessmentHistoryDetail from './pages/pm/PMAssessmenthistorydetail';
 
 // Foreman Pages (ย้ายเข้า folder Foreman)
 import ForemanAssessment from './pages/Foreman/ForemanAssessment';
@@ -76,7 +78,8 @@ function App() {
             <Route path="/task-assessment" element={<TaskAssessment />} />
             <Route path="/pm/viewtaskwk" element={<ViewTaskWk />} />
             <Route path="/pm/viewtaskwkdetail" element={<ViewTaskWkDetail />} />
-            
+            <Route path="/pm/assessment-history" element={<PMAssessmentHistory />} />
+            <Route path="/pm/assessment-history-detail" element={<PMAssessmentHistoryDetail />} />
 
             {/* Foreman Routes */}
             <Route path="/foreman" element={<ForemanDashboard />} />

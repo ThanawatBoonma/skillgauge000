@@ -50,17 +50,6 @@ async function refreshWorkerMetadata() {
   }
 }
 
-async function ensureAssessmentSchema() {
-    try {
-        // ตารางคำถาม (ถ้าคุณ Import SQL เพื่อนแล้ว มันจะข้ามไปเอง)
-        await execute(`CREATE TABLE IF NOT EXISTS questions (id CHAR(36) PRIMARY KEY, text TEXT, category VARCHAR(120), subcategory VARCHAR(120), difficulty VARCHAR(60), version VARCHAR(60), active TINYINT(1) DEFAULT 1, created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6))`);
-        await execute(`CREATE TABLE IF NOT EXISTS question_options (id CHAR(36) PRIMARY KEY, question_id CHAR(36), text TEXT, is_correct TINYINT(1) DEFAULT 0, FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE)`);
-        
-    } catch (e) {
-        console.warn('Ensure assessment schema failed:', e.message);
-    }
-}
-
 module.exports = {
   pool,
   execute,
@@ -68,5 +57,4 @@ module.exports = {
   queryOne,
   withTransaction,
   refreshWorkerMetadata,
-  ensureAssessmentSchema
 };

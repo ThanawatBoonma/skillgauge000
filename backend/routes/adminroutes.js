@@ -60,15 +60,5 @@ router.get('/health', (req, res) => res.json({ ok: true }));
 router.get('/tasks', requireAuth, authorizeRoles('admin', 'project_manager'), Controller.getTasks);
 router.post('/tasks', requireAuth, authorizeRoles('admin', 'project_manager'), Controller.createTask);
 
-// Quiz Bank & Assessments (คลังข้อสอบ)
-router.get('/questions', requireAuth, authorizeRoles('admin'), Controller.getQuestions);
-router.post('/questions', requireAuth, authorizeRoles('admin'), Controller.createQuestion);
-router.put('/questions/:id', requireAuth, authorizeRoles('admin'), Controller.updateQuestion);
-router.delete('/questions/:id', requireAuth, authorizeRoles('admin'), Controller.deleteQuestion);
-
-router.get('/assessments/rounds', requireAuth, authorizeRoles('admin'), Controller.getAssessmentRounds);
-router.post('/assessments/rounds', requireAuth, authorizeRoles('admin'), Controller.saveAssessmentRound);
-router.put('/assessments/rounds/:id', requireAuth, authorizeRoles('admin'), Controller.saveAssessmentRound);
-
 // Export Router
 module.exports = router;

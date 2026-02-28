@@ -31,6 +31,7 @@ const SkillAssessmentTest = () => {
   
   const [warningModal, setWarningModal] = useState({ show: false, message: '' }); 
   const [showConfirmModal, setShowConfirmModal] = useState(false); 
+  const [scoreResult, setScoreResult] = useState(null);
 
   const timerRef = useRef(null); 
   const questionsPerPage = 15; 
@@ -179,13 +180,21 @@ const SkillAssessmentTest = () => {
         });
 
         const API = 'http://localhost:4000';
-        await axios.post(`${API}/api/skillAssessment/submit`, {
+        const res = await axios.post(`${API}/api/skillAssessment/submit`, {
             user_id: user.id,
             answers: formattedAnswers,
-            level: targetLevel // ✅ ส่ง Level ที่สอบกลับไปบอก Backend
+            level: targetLevel // ส่ง Level ที่สอบกลับไปบอก Backend
         }, {
             headers: { Authorization: `Bearer ${token}` }
         });
+
+        console.log("👉 ข้อมูลดิบที่ได้จาก Backend คือ:", res.data);
+
+        setScoreResult({
+            correct: res.data.correct,
+            total: res.data.total
+        });
+
         setStep('review'); 
         window.scrollTo(0, 0);
     } catch (err) {
@@ -249,14 +258,26 @@ const SkillAssessmentTest = () => {
   }
 
   // --- Step 3: Review ---
-  if (step === 'review') {
+if (step === 'review') {
     return (
        <div style={{ minHeight: '100vh', background: '#f4f6f9', display:'flex', justifyContent:'center', alignItems:'center', padding: '20px', fontFamily: 'sans-serif' }}>
           <div style={{ background: 'white', maxWidth: '600px', width: '100%', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-             <div style={{ fontSize: '50px', marginBottom: '20px' }}>✅</div>
+             
              <h2 style={{ color: '#27ae60', margin: '0 0 15px 0' }}>ส่งคำตอบเรียบร้อยแล้ว</h2>
+             
+             {/* ✅ เพิ่มกล่องแสดงคะแนนที่นี่ */}
+             {scoreResult && (
+                 <div style={{ margin: '25px auto', padding: '20px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', maxWidth: '300px' }}>
+                     <div style={{ fontSize: '16px', color: '#64748b', marginBottom: '8px', fontWeight: 'bold' }}>คะแนนที่ได้</div>
+                     <div style={{ fontSize: '42px', fontWeight: '900', color: '#1e293b' }}>
+                         <span style={{ color: '#22c55e' }}>{scoreResult.correct}</span> 
+                         <span style={{ fontSize: '24px', color: '#94a3b8', margin: '0 5px' }}>/</span> 
+                         <span style={{ fontSize: '28px' }}>{scoreResult.total}</span>
+                     </div>
+                 </div>
+             )}
+
              <p style={{ fontSize: '18px', color: '#555', margin: '10px 0' }}>ระบบได้บันทึกคะแนนของคุณแล้ว</p>
-             <p style={{ fontSize: '14px', color: '#777', marginTop: '5px' }}>ผลการประเมินจะแสดงในหน้าหลัก</p>
              <div style={{ marginTop: '40px' }}>
                 <button onClick={() => navigate('/worker')} style={{ padding: '12px 40px', background: '#3498db', color: 'white', border: 'none', borderRadius: '30px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>กลับหน้าหลัก</button>
              </div>

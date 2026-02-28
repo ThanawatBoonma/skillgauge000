@@ -17,16 +17,15 @@ const ViewTaskWk = () => {
   // Modal State
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
     if (!user) { navigate('/login'); return; }
     fetchHistory();
   }, []); 
 
-const fetchHistory = async () => {
+  const fetchHistory = async () => {
     setLoading(true);
     try {
       const API = 'http://localhost:4000';
-      // ✅ เปลี่ยนมาเรียก API จาก pmRoutes แทน
       const res = await axios.get(`${API}/api/pm/task-history`); 
       setHistoryList(res.data);
     } catch (error) {
@@ -46,10 +45,11 @@ const fetchHistory = async () => {
       localStorage.removeItem('token');
       navigate('/login');
   };
-
+// ฟังก์ชันกรองข้อมูลตาม searchTerm (ค้นหาจากชื่องาน, ชื่อช่าง หรือสถานที่)
   const filteredList = historyList.filter(item => 
     (item.task_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.worker_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (item.worker_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.site_location || '').toLowerCase().includes(searchTerm.toLowerCase()) 
   );
 
   // Styles Modal
@@ -73,7 +73,7 @@ const fetchHistory = async () => {
         </div>
       )}
 
-      {/* ✅ Sidebar ของ PM */}
+      {/* Sidebar ของ PM */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
           PM Portal
@@ -81,6 +81,7 @@ const fetchHistory = async () => {
         <nav className="menu">
           <button className="menu-item" onClick={() => navigate('/pm')}>หน้าหลัก</button>
           <button className="menu-item active">ประวัติการทำงานช่าง</button> 
+          <button className="menu-item" onClick={() => navigate('/pm/assessment-history')}>ประวัติการประเมิน</button>
           <button className="menu-item" onClick={() => navigate('/pm-settings')}>ตั้งค่าบัญชี</button>
           <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
         </nav>
@@ -104,12 +105,12 @@ const fetchHistory = async () => {
             <div style={{ display: 'flex', gap: '10px' }}>
                 <input 
                     type="text" 
-                    placeholder="🔍 ค้นหาชื่องาน หรือชื่อช่าง..." 
+                    placeholder="🔍 ค้นหาชื่องาน, ชื่อช่าง หรือสถานที่..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{ 
                         padding: '10px 15px', borderRadius: '8px', border: '1px solid #cbd5e1', 
-                        width: '250px', outline: 'none' 
+                        width: '300px', outline: 'none' 
                     }}
                 />
                 <button onClick={fetchHistory} style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -127,6 +128,7 @@ const fetchHistory = async () => {
                         <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                             <th style={{ padding: '16px', color: '#64748b', fontWeight: '600' }}>ชื่องาน</th>
                             <th style={{ padding: '16px', color: '#64748b', fontWeight: '600' }}>ชื่อช่างผู้รับผิดชอบ</th>
+                            <th style={{ padding: '16px', color: '#64748b', fontWeight: '600' }}>สถานที่ปฏิบัติงาน</th>
                             <th style={{ padding: '16px', color: '#64748b', fontWeight: '600' }}>ประเภทงาน</th>
                             <th style={{ padding: '16px', color: '#64748b', fontWeight: '600' }}>วันที่ส่งงาน</th>
                             <th style={{ padding: '16px', color: '#64748b', fontWeight: '600', textAlign: 'right' }}>จัดการ</th>
@@ -142,6 +144,10 @@ const fetchHistory = async () => {
                                     <td style={{ padding: '16px' }}>
                                         {item.worker_name} <br/>
                                         <span style={{ fontSize: '12px', color: '#64748b' }}>({item.worker_role || '-'})</span>
+                                    </td>
+                                    
+                                    <td style={{ padding: '16px', color: '#475569' }}>
+                                        📍 {item.site_location || '-'}
                                     </td>
                                     <td style={{ padding: '16px', color: '#1e293b' }}>
                                         <span style={{ background: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
@@ -166,7 +172,8 @@ const fetchHistory = async () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                {/* ✅ 3. แก้ไข colSpan จาก 5 เป็น 6 เพราะมีคอลัมน์เพิ่มขึ้นมา */}
+                                <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                                     ไม่พบประวัติการทำงาน
                                 </td>
                             </tr>

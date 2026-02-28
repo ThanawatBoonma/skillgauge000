@@ -138,7 +138,12 @@ if (user_id) {
             await SkillAssessmentTest.saveAssessmentResult(user_id, theoryScore, 0); 
         }
 
-        res.json({ message: "Submission successful", score: theoryScore });
+        res.json({ 
+            message: "Submission successful", 
+            score: theoryScore,
+            correct: rawScore,        // จำนวนข้อที่ตอบถูก
+            total: totalQuestions     // จำนวนข้อสอบทั้งหมด
+        });
 
     } catch (err) {
         console.error('Submit Assessment Error:', err);
