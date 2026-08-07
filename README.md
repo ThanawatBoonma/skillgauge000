@@ -1,70 +1,113 @@
-# Getting Started with Create React App
+# SkillGauge - Backend API Services
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+**SkillGauge Backend** เป็นบริการ RESTful API Server ที่สร้างขึ้นด้วย **Node.js** และ **Express.js** ทำหน้าที่เป็นศูนย์กลางประมวลผลข้อมูล เชื่อมต่อกับฐานข้อมูล MySQL จัดการสิทธิ์การเข้าถึง (Authentication & Authorization) จัดการคลังข้อสอบ โครงการ งาน และประวัติการประเมินทักษะ
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## เทคโนโลยีที่ใช้ (Tech Stack)
 
-### `npm start`
+- **Runtime Engine**: Node.js
+- **Web Framework**: Express.js (v4.18.2)
+- **Database Client**: `mysql2` (Connection Pool & Promises)
+- **Authentication**: `jsonwebtoken` (JWT) & `bcryptjs` (Password Hashing)
+- **File Uploads**: `multer` (อัปโหลดรูปภาพและไฟล์ประกอบ)
+- **Validation**: `express-validator` & `zod`
+- **Development Tool**: `nodemon`
+- **CORS**: `cors` (รองรับ Cross-Origin Resource Sharing)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## โครงสร้างโฟลเดอร์ (Directory Structure)
 
-### `npm test`
+```text
+backend/
+├── config/                # การตั้งค่าระบบ
+│   └── db.js              # MySQL Connection Pool Config
+├── controllers/           # Controller Logic ประมวลผลแต่ละ Endpoint
+├── middleware/            # Middleware (Auth Check, Validation)
+├── models/                # Database Access Logic / Queries
+├── routes/                # Express Route Handlers
+│   ├── adminroutes.js     # API ระบบจัดการ Admin & Metadata
+│   ├── auth.js            # API ลงชื่อเข้าใช้ / ตรวจสอบสิทธิ์
+│   ├── manageusers.js     # API จัดการข้อมูลผู้ใช้งาน
+│   ├── quiz.js            # API จัดการคลังข้อสอบ
+│   ├── examsetroutes.js   # API จัดการชุดแบบทดสอบ
+│   ├── manageproject.js   # API บริหารจัดการโครงการ
+│   ├── manageprojecttask.js # API บริหารจัดการงานย่อยในโครงการ
+│   ├── skillAssessmentTest.js # API การทำแบบทดสอบทักษะ
+│   ├── assessment.js      # API การประเมินผล
+│   ├── wkdashboard.js     # API ข้อมูลแดชบอร์ด
+│   ├── pmRoutes.js        # API สำหรับ Project Manager
+│   ├── location.js        # API ข้อมูลสถานที่/สถานที่ทำงาน
+│   └── setting.js         # API การตั้งค่าระบบ
+├── uploads/               # โฟลเดอร์จัดเก็บไฟล์อัปโหลด (Static Files)
+├── .env                   # Environment Variables
+├── Dockerfile             # Dockerfile สำหรับ Containerize Backend
+├── index.js               # Entry Point ของ Express Server
+└── package.json           # Dependencies & Scripts
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## การตั้งค่า Environment Variables (`.env`)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+สร้างหรือแก้ไขไฟล์ `.env` ในโฟลเดอร์ `backend/`:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```env
+DB_HOST=localhost       # หรือ 'db' หากรันผ่าน Docker Compose
+DB_USER=root
+DB_PASS=1234
+DB_NAME=dbweb
+PORT=4000
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+JWT_SECRET=your_long_random_secret_here
+JWT_EXPIRES_IN=1d
+```
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## การติดตั้งและรันโปรเจกต์ (Installation & Running)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 1. ติดตั้ง Dependencies
+```bash
+npm install
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 2. รันในโหมด Development (พร้อม Hot-Reload ด้วย Nodemon)
+```bash
+npm run dev
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 3. รันในโหมด Production / Standard
+```bash
+npm start
+```
+เซิร์ฟเวอร์จะเปิดทำงานที่พอร์ต `http://localhost:4000` (หรือตามค่า `PORT` ใน `.env`)
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## สรุปรายการ API Endpoints หลัก (API Reference Summary)
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Prefix Path | Route File | รายละเอียดหน้าที่ |
+| :--- | :--- | :--- |
+| `/api/auth` | `auth.js` | เข้าสู่ระบบ (Login) และตรวจสอบสถานะยืนยันตัวตน |
+| `/api/admin` | `adminroutes.js` | จัดการข้อมูลแอดมินและการอัปเดต Metadata แรงงาน |
+| `/api/manageusers` | `manageusers.js` | เพิ่ม แก้ไข ดึงข้อมูลผู้ใช้งาน และลงทะเบียนแรงงาน |
+| `/api/quiz` | `quiz.js` | สร้าง แก้ไข ดึงข้อมูลโจทย์และคำถามประเมินทักษะ |
+| `/api/examset` | `examsetroutes.js` | จัดการชุดข้อสอบ (Exam Sets) |
+| `/api/manageproject` | `manageproject.js` | สร้างและติดตามข้อมูลโครงการ (Projects) |
+| `/api/manageprojecttask`| `manageprojecttask.js` | กำหนดงาน (Tasks) และจัดสรรแรงงานเข้าโครงการ |
+| `/api/skillAssessment` | `skillAssessmentTest.js` | บันทึกคำตอบและคำนวณผลการทำแบบทดสอบทักษะแรงงาน |
+| `/api/assessment` | `assessment.js` | บันทึกการประเมินทักษะและการปฏิบัติงาน |
+| `/api/wkdashboard` | `wkdashboard.js` | สรุปข้อมูลสำหรับหน้าแดชบอร์ด |
+| `/api/pm` | `pmRoutes.js` | การประเมินและดูประวัติของ Project Manager |
+| `/uploads` | Static Middleware | เข้าถึงไฟล์รูปภาพและเอกสารที่อัปโหลดเข้าสู่ระบบ |
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## การรันด้วย Docker
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```bash
+docker build -t skillgauge-backend .
+docker run -p 4000:4000 --env-file .env skillgauge-backend
+```

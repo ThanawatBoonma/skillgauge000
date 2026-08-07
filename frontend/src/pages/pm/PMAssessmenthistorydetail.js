@@ -83,12 +83,12 @@ const PMAssessmentHistoryDetail = () => {
                         {workerHistory.map((item) => (
                             <div key={item.assessment_id} style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '15px', background: '#f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                    <div style={{ fontWeight: 'bold', color: '#334155' }}>ประเมินครั้งที่ #{item.assessment_id}</div>
-                                    <div style={{ fontSize: '13px', color: '#64748b' }}>{formatDate(item.created_at)}</div>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>ผู้ประเมิน: {item.assessor_name || `ID ${item.fm_id}`}</div>
+                                    <div style={{ fontWeight: 'bold', color: '#334155' }}>การประเมิน</div>
+                                    <div style={{ fontSize: '16px', color: '#101112' }}>{formatDate(item.created_at)}</div>
+                                    <div style={{ fontSize: '16px', color: '#141517', marginTop: '4px' }}>ผู้ประเมิน: {item.assessor_name || `ID ${item.fm_id}`}</div>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontSize: '12px', color: '#64748b' }}>คะแนนรวม</div>
+                                    <div style={{ fontSize: '16px', color: '#64748b' }}>คะแนนรวม</div>
                                     <div style={{ fontWeight: 'bold', color: '#2563eb' }}>{item.assessment_total}</div>
                                 </div>
                                 <div>
@@ -136,7 +136,7 @@ const PMAssessmentHistoryDetail = () => {
 
                 {/* รูปภาพผลงาน */}
                 <div style={{ marginTop: '20px' }}>
-                    <strong style={{ display: 'block', marginBottom: '10px', color: '#334155' }}>📷 รูปภาพผลงานอ้างอิง:</strong>
+                    <strong style={{ display: 'block', marginBottom: '10px', color: '#334155' }}>📷 รูปภาพผลงาน:</strong>
                     <div style={{ textAlign: 'center', background: '#1e293b', padding: '20px', borderRadius: '8px' }}>
                         {assessment.photo_url ? (
                             <img 

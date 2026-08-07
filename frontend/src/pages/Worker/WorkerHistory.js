@@ -156,7 +156,7 @@ const WorkerHistory = () => {
                     {/* Badge แสดงสถานะ/ระดับ */}
                     <div style={{ position: 'absolute', top: '20px', right: '20px', textAlign: 'right' }}>
                         <span style={{ 
-                            background: '#2563eb', color: 'white', padding: '5px 12px', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' 
+                            background: '#2563eb', color: 'white', padding: '5px 12px', borderRadius: '20px', fontSize: '16px', fontWeight: 'bold' 
                         }}>
                             Skill Level: {item.skill_level}
                         </span>
