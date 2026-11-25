@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../pm/WKDashboard.css'; 
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 import { mockProjects } from '../../mock/mockData'; // ดึง Mock Data สำรองไว้
 
 const ForemanReportSystem = () => {
@@ -100,21 +101,7 @@ const ForemanReportSystem = () => {
   return (
     <div className="dash-layout">
       {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <nav className="menu">
-            <div style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-                Foreman Panel
-            </div>
-            <button className="menu-item" onClick={() => navigate('/foreman')}>Dashboard</button>
-            <button className="menu-item active">รายงานสรุปงาน</button>
-            <button className="menu-item" onClick={() => navigate('/project-detail')}>My Projects</button>
-            <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่า</button>
-            
-            <button className="menu-item" onClick={() => navigate('/foreman')} style={{ marginTop: 'auto', background: '#f1f5f9', color: '#64748b' }}>
-                &larr; ยกเลิก / ย้อนกลับ
-            </button>
-        </nav>
-      </aside>
+      <FMSidebar />
 
       {/* Main Content */}
       <main className="dash-main">

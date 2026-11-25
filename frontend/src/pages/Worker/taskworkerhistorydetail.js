@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import WKSidebar from '../../components/Sidebar/WKSidebar';
 import '../pm/WKDashboard.css';
 
 const TaskWorkerHistoryDetail = () => {
@@ -20,15 +21,8 @@ const TaskWorkerHistoryDetail = () => {
 
   return (
     <div className="dash-layout">
-      {/* Sidebar ของ Worker */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Worker Portal
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/worker/task-history')}>&larr; กลับหน้าประวัติ</button>
-        </nav>
-      </aside>
+      {/* Sidebar ของ Worker (WKSidebar Component) */}
+      <WKSidebar />
 
       <main className="dash-main">
         <div className="dash-topbar">

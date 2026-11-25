@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import WKSidebar from '../../components/Sidebar/WKSidebar';
 import '../pm/WKDashboard.css';
 
 const WorkerTaskDetail = () => {
@@ -126,15 +127,7 @@ const WorkerTaskDetail = () => {
       )}
 
       {/* 1. Sidebar */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Worker Portal
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/worker')}>&larr; กลับหน้าหลัก</button>
-            <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444' }} onClick={handleLogout}>ออกจากระบบ</button>
-        </nav>
-      </aside>
+      <WKSidebar onLogout={handleLogout} />
 
       {/* 2. Main Content */}
       <main className="dash-main">

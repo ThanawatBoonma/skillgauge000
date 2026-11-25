@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import WKSidebar from '../../components/Sidebar/WKSidebar';
 import '../pm/WKDashboard.css'; 
 
 const TaskWorkerHistory = () => {
@@ -73,21 +74,8 @@ const TaskWorkerHistory = () => {
         </div>
       )}
 
-      {/* ✅ Sidebar ของ Worker */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Worker Portal
-        </div>
-        <nav className="menu">
-          <button className="menu-item" onClick={() => navigate('/worker')}>หน้าหลัก</button>
-          <button className="menu-item" onClick={() => navigate('/worker/test')}>สอบวัดระดับ</button>
-          <button className="menu-item" onClick={() => navigate('/worker/issues')}>รายงานปัญหา</button>
-          <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
-          <button className="menu-item active">ประวัติการทำงาน</button> 
-          <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่าบัญชี</button>
-          <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
-        </nav>
-      </aside>
+      {/* ✅ Sidebar ของ Worker (WKSidebar Component) */}
+      <WKSidebar onLogout={handleLogoutClick} />
 
       <main className="dash-main">
         <header className="dash-header">

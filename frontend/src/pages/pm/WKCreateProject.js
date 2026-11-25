@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ThaiDatePicker from '../../components/ThaiDatePicker';
 import '../pm/WKDashboard.css';
+import PMSidebar from '../../components/Sidebar/PMSidebar';
 
 const WKCreateProject = () => {
   const navigate = useNavigate();
@@ -99,19 +100,6 @@ const WKCreateProject = () => {
         </div>
       )}
 
-      {/* 2. Logout Modal */}
-      {showLogoutModal && (
-        <div style={modalOverlayStyle}>
-            <div style={modalContentStyle}>
-                <h3 style={{color: '#e74c3c', margin: '0 0 15px'}}>ยืนยันออกจากระบบ?</h3>
-                <div style={{display:'flex', justifyContent:'center'}}>
-                    <button onClick={() => setShowLogoutModal(false)} style={{...btnStyle, background:'#ccc'}}>ยกเลิก</button>
-                    <button onClick={confirmLogout} style={{...btnStyle, background:'#e74c3c', color:'white'}}>ยืนยัน</button>
-                </div>
-            </div>
-        </div>
-      )}
-
       {/* 3. General Alert (Error) */}
       {alertMessage && (
         <div style={modalOverlayStyle}>
@@ -123,18 +111,7 @@ const WKCreateProject = () => {
         </div>
       )}
 
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          PM Portal
-        </div>
-        <nav className="menu">
-          <button type="button" className={`menu-item ${location.pathname === '/pm' ? 'active' : ''}`} onClick={() => navigate('/pm', { state: { user } })}>หน้าหลัก</button>
-          <button type="button" className={`menu-item ${location.pathname === '/project-tasks' ? 'active' : ''}`} onClick={() => navigate('/project-tasks', { state: { user } })}>มอบหมายงาน</button>
-          <button type="button" className={`menu-item ${location.pathname === '/projects' || location.pathname === '/create-project' ? 'active' : ''}`} onClick={() => navigate('/projects', { state: { user } })}>โครงการทั้งหมด</button>
-          <button type="button" className={`menu-item ${location.pathname === '/pm-settings' ? 'active' : ''}`} onClick={() => navigate('/pm-settings', { state: { user } })}>ตั้งค่า</button>
-          <button type="button" className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>ออกจากระบบ</button>
-        </nav>
-      </aside>
+      <PMSidebar />
 
       <main className="dash-main">
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>

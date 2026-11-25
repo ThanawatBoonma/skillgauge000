@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../pm/WKDashboard.css';
+import PMSidebar from '../../components/Sidebar/PMSidebar';
 
 const ProjectDetail = () => {
   const location = useLocation();
@@ -85,19 +86,8 @@ const ProjectDetail = () => {
 
   return (
     <div className="dash-layout">
-      {/* Sidebar เต็มรูปแบบ */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          PM Portal
-        </div>
-        <nav className="menu">
-          <button type="button" className="menu-item" onClick={() => navigate('/pm', { state: { user } })}>หน้าหลัก</button>
-          <button type="button" className="menu-item" onClick={() => navigate('/project-tasks', { state: { user } })}>มอบหมายงาน</button>
-          <button type="button" className="menu-item active" onClick={() => navigate('/projects', { state: { user } })}>โครงการทั้งหมด</button>
-          <button type="button" className="menu-item" onClick={() => navigate('/pm-settings', { state: { user } })}>ตั้งค่า</button>
-          <button type="button" className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogout}>ออกจากระบบ</button>
-        </nav>
-      </aside>
+      {/* Sidebar */}
+      <PMSidebar />
 
       <main className="dash-main">
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>

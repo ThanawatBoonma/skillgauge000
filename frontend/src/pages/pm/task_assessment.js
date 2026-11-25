@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ThaiDatePicker from '../../components/ThaiDatePicker'; // ตรวจสอบ path ให้ถูก
 import '../pm/WKDashboard.css';
+import PMSidebar from '../../components/Sidebar/PMSidebar';
 
 const TaskAssessment = () => {
   const navigate = useNavigate();
@@ -118,12 +119,7 @@ const TaskAssessment = () => {
         </div>
       )}
 
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>PM Portal</div>
-        <nav className="menu">
-          <button className="menu-item" onClick={() => navigate('/pm')}>กลับหน้าหลัก</button>
-        </nav>
-      </aside>
+      <PMSidebar />
 
       <main className="dash-main">
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>

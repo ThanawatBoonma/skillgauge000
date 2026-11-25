@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import './WKDashboard.css';
+import PMSidebar from '../../components/Sidebar/PMSidebar';
 import { mockUser, mockProjects, mockSites, mockTasks } from '../../mock/mockData';
 
 const Dashboard = () => {
@@ -64,50 +65,8 @@ const Dashboard = () => {
 
   return (
     <div className="dash-layout">
-      {/* Sidebar - ปรับให้เหมือน Worker/Foreman */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          PM Portal
-        </div>
-        <nav className="menu">
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/pm' || location.pathname === '/dashboard' ? 'active' : ''}`} 
-            onClick={() => navigate('/pm', { state: { user } })}
-          >
-            หน้าหลัก
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/project-tasks' ? 'active' : ''}`} 
-            onClick={() => navigate('/project-tasks', { state: { user } })}
-          >
-            มอบหมายงาน
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/projects' ? 'active' : ''}`} 
-            onClick={() => navigate('/projects', { state: { user } })}
-          >
-            โครงการทั้งหมด
-          </button>
-          <button 
-            type="button" 
-            className={`menu-item ${location.pathname === '/pm-settings' ? 'active' : ''}`} 
-            onClick={() => navigate('/pm-settings', { state: { user } })}
-          >
-            ตั้งค่า
-          </button>
-          <button 
-            type="button" 
-            className="menu-item logout-btn" 
-            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
-            onClick={handleLogout}
-          >
-            ออกจากระบบ
-          </button>
-        </nav>
-      </aside>
+      {/* Sidebar */}
+      <PMSidebar />
 
       {/* Main area */}
       <main className="dash-main">

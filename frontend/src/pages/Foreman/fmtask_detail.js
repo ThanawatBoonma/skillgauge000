@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../pm/WKDashboard.css';
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 
 const FMTaskDetail = () => {
   const navigate = useNavigate();
@@ -39,14 +40,7 @@ const FMTaskDetail = () => {
   return (
     <div className="dash-layout">
       {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Foreman Panel
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/foreman')}>&larr; กลับหน้าหลัก</button>
-        </nav>
-      </aside>
+      <FMSidebar />
 
       {/* Main Content */}
       <main className="dash-main">

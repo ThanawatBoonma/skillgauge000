@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // ✅ เพิ่ม axios เพื่อเชื่อมต่อ API
 import '../pm/WKDashboard.css';
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 
 const ForemanSettings = () => {
   const navigate = useNavigate();
@@ -74,19 +75,8 @@ const ForemanSettings = () => {
 
   return (
     <div className="dash-layout">
-      
-      {/* === Logout Modal === */}
-      {showLogoutModal && (
-        <div style={modalOverlayStyle}>
-            <div style={modalContentStyle}>
-                <h3 style={{color: '#e74c3c', margin: '0 0 15px'}}>ยืนยันออกจากระบบ?</h3>
-                <div style={{display:'flex', justifyContent:'center', gap: '10px'}}>
-                    <button onClick={() => setShowLogoutModal(false)} style={{...btnModalStyle, background:'#e2e8f0', color:'#475569'}}>ยกเลิก</button>
-                    <button onClick={confirmLogout} style={{...btnModalStyle, background:'#ef4444', color:'white'}}>ยืนยัน</button>
-                </div>
-            </div>
-        </div>
-      )}
+      {/* Sidebar */}
+      <FMSidebar />
 
       {/* === Info Modal === */}
       {infoModal.show && (
@@ -114,24 +104,7 @@ const ForemanSettings = () => {
         </div>
       )}
 
-      {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Foreman Panel
-        </div>
-        <nav className="menu">
-          <button className="menu-item" onClick={() => navigate('/foreman')}>หน้าหลัก</button>
-          <button className="menu-item" onClick={() => navigate('/foreman/assessment-history')}>ประวัติการประเมิน</button>          
-          <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่าบัญชี</button>
-          <button 
-            className="menu-item logout-btn" 
-            style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}
-            onClick={handleLogoutClick}
-          >
-            ออกจากระบบ
-          </button>
-        </nav>
-      </aside>
+
 
       <main className="dash-main" style={{ padding: '40px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>

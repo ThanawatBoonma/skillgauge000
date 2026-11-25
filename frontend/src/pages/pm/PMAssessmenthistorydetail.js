@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../pm/WKDashboard.css';
+import PMSidebar from '../../components/Sidebar/PMSidebar';
 
 const PMAssessmentHistoryDetail = () => {
   const navigate = useNavigate();
@@ -49,15 +50,8 @@ const PMAssessmentHistoryDetail = () => {
 
   return (
     <div className="dash-layout">
-      {/* ✅ Sidebar ของ PM */}
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          PM Portal
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/pm/assessment-history')}>&larr; กลับหน้าประวัติ</button>
-        </nav>
-      </aside>
+      {/* Sidebar */}
+      <PMSidebar />
 
       <main className="dash-main">
         <div className="dash-topbar">

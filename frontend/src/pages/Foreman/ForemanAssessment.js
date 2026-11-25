@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; 
 import '../pm/WKDashboard.css';
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 
 const ForemanAssessment = () => {
   const navigate = useNavigate();
@@ -211,13 +212,7 @@ const ForemanAssessment = () => {
       )}
 
       {/* Main Content */}
-      <aside className="dash-sidebar">
-        <nav className="menu">
-            <div style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>Foreman Panel</div>
-            <button className="menu-item" onClick={() => navigate('/foreman')}>Dashboard</button>
-            <button className="menu-item active">ประเมินผลงาน</button>
-        </nav>
-      </aside>
+      <FMSidebar />
 
       <main className="dash-main">
         <header className="dash-header">

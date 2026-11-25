@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../pm/WKDashboard.css';
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 
 const FMAssessmentHistoryDetail = () => {
   const navigate = useNavigate();
@@ -51,14 +52,7 @@ const FMAssessmentHistoryDetail = () => {
 
   return (
     <div className="dash-layout">
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-          Foreman Panel
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/foreman/assessment-history')}>&larr; กลับหน้าประวัติ</button>
-        </nav>
-      </aside>
+      <FMSidebar />
 
       <main className="dash-main">
         <div className="dash-topbar">

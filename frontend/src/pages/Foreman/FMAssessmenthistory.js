@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../pm/WKDashboard.css';
+import FMSidebar from '../../components/Sidebar/FMSidebar';
 
 const FMAssessmentHistory = () => {
   const navigate = useNavigate();
@@ -47,19 +48,7 @@ const FMAssessmentHistory = () => {
 
   return (
     <div className="dash-layout">
-      <aside className="dash-sidebar">
-        <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>
-            Foreman Panel
-        </div>
-        <nav className="menu">
-            <button className="menu-item" onClick={() => navigate('/foreman')}>หน้าหลัก</button>
-            <button className="menu-item active">ประวัติการประเมิน</button>
-            <button className="menu-item" onClick={() => navigate('/foreman-settings')}>ตั้งค่าบัญชี</button>
-            <button className="menu-item logout-btn" onClick={handleLogout} style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }}>
-              ออกจากระบบ
-            </button>
-        </nav>
-      </aside>
+      <FMSidebar />
 
       <main className="dash-main">
         <header className="dash-header">
