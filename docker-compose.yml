@@ -54,7 +54,7 @@ services:
       - db
 
   db:
-    image: mysql:latest
+    image: mysql:9
     container_name: mysql-01
     restart: always
     environment:

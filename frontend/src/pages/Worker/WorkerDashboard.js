@@ -15,7 +15,7 @@ const WorkerDashboard = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   
-  // ✅ เพิ่ม State สำหรับ Modal Cooldown
+  // State สำหรับ Modal Cooldown
   const [showWaitModal, setShowWaitModal] = useState(false);
   const [waitDaysLeft, setWaitDaysLeft] = useState(0);
 
@@ -29,7 +29,6 @@ const WorkerDashboard = () => {
   }, []);
 
   const fetchDashboardData = async (userId) => {
-    // โค้ดเดิม
     setLoading(true);
     try {
         const API = 'http://localhost:4000';
@@ -53,19 +52,18 @@ const WorkerDashboard = () => {
      }
   };
 
-  // ✅ แก้ไข Logic เช็คสิทธิ์การสอบ
   const handleStartTest = async () => {
     if (!user || !user.id) return;
 
     try {
         const API = 'http://localhost:4000';
 
-        // 1. เช็ค Cooldown ก่อน (ดึง API ตัวใหม่)
+        // 1. เช็ค Cooldown ก่อน
         const cooldownRes = await axios.get(`${API}/api/wkdashboard/check-cooldown?user_id=${user.id}`);
         if (!cooldownRes.data.canTest) {
             setWaitDaysLeft(cooldownRes.data.daysLeft);
-            setShowWaitModal(true); // เปิดป็อปอัพแจ้งเตือนเวลา
-            return; // หยุดการทำงานถ้ายังไม่ครบกำหนด
+            setShowWaitModal(true);
+            return;
         }
 
         // 2. ถ้าครบกำหนดเวลาแล้ว ให้ไปเช็คสถานะเดิม
@@ -104,7 +102,7 @@ const WorkerDashboard = () => {
   return (
     <div className="dash-layout">
       
-      {/* ... Logout Modal (เดิม) ... */}
+      {/* Logout Modal */}
       {showLogoutModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -117,7 +115,7 @@ const WorkerDashboard = () => {
         </div>
       )}
 
-      {/* ... Pending Practical Modal (เดิม) ... */}
+      {/* Pending Practical Modal */}
       {showPendingModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -133,7 +131,7 @@ const WorkerDashboard = () => {
         </div>
       )}
 
-      {/* ✅ === ป็อปอัพแจ้งเตือนเวลารอ Cooldown (ของใหม่) === */}
+      {/* ป็อปอัพแจ้งเตือนเวลารอ Cooldown */}
       {showWaitModal && (
         <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
@@ -150,12 +148,13 @@ const WorkerDashboard = () => {
         </div>
       )}
 
-      {/* ---------------- Sidebar ---------------- */}
+      {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="sidebar-title" style={{ padding: '20px', textAlign: 'center', fontWeight: 'bold', color: '#1e293b' }}>Worker Portal</div>
         <nav className="menu">
           <button className="menu-item active" onClick={() => navigate('/worker')}>หน้าหลัก</button>
           <button className="menu-item" onClick={handleStartTest}>สอบวัดระดับ</button>
+          <button className="menu-item" onClick={() => navigate('/worker/issues')}>รายงานปัญหา</button>
           <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
           <button className="menu-item" onClick={() => navigate('/worker/task-history')}>ประวัติการทำงาน</button>
           <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่าบัญชี</button>
@@ -163,7 +162,7 @@ const WorkerDashboard = () => {
         </nav>
       </aside>
 
-      {/* ---------------- Main Content ---------------- */}
+      {/* Main Content */}
       <main className="dash-main">
         <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
           <div style={{ marginBottom: '30px' }}>
@@ -216,7 +215,15 @@ const WorkerDashboard = () => {
                                 ผู้คุมงาน: {assignedTask.foreman_name || '-'}
                             </p>
                          </div>
-                         <div>
+                         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* ปุ่มแจ้งปัญหาใหม่ */}
+                            <button 
+                                onClick={() => navigate('/worker/issues', { state: { autoOpenModal: true, taskData: assignedTask } })}
+                                style={{ padding: '12px 24px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }}
+                            >
+                                ⚠️ แจ้งปัญหา
+                            </button>
+
                             <button onClick={handleGoToSubmit} style={{ padding: '12px 24px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(34, 197, 94, 0.3)' }}>
                                 ดูรายละเอียด / ส่งงาน &rarr;
                             </button>

@@ -32,29 +32,10 @@ async function withTransaction(handler) {
   }
 }
 
-// --- Init Functions (สร้างตารางเสริมอัตโนมัติ) ---
-// ฟังก์ชันนี้จะทำงานเฉพาะตารางที่ admin ต้องใช้เพิ่ม (เช่น audit_logs, questions)
-// โดยจะไม่ไปยุ่งกับตาราง dbuser หรือ skill_assessment_results ที่คุณมีอยู่แล้ว
-
-async function refreshWorkerMetadata() {
-  try {
-    await execute(`
-      CREATE TABLE IF NOT EXISTS worker_profiles (
-        worker_id INT PRIMARY KEY, 
-        payload LONGTEXT, 
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB
-    `);
-  } catch (e) { 
-    console.warn('Ensure worker_profiles failed:', e.message); 
-  }
-}
-
 module.exports = {
   pool,
   execute,
   query,
   queryOne,
   withTransaction,
-  refreshWorkerMetadata,
 };

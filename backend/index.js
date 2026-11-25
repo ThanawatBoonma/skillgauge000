@@ -12,24 +12,12 @@ const pool = require('./config/db');
 
 // (ตรวจสอบว่าไฟล์เหล่านี้วางอยู่ที่ root หรือ folder ไหน แก้ path ให้ตรงนะครับ)
 const adminRoutes = require('./routes/adminroutes'); 
-const { refreshWorkerMetadata } = require('./models/adminmodel');
 
 app.use(express.json());
 app.use(cors({
   origin: 'http://localhost:3000', // อนุญาตเฉพาะ Frontend ของเรา
   credentials: true                // อนุญาตให้ส่ง Cookies/Token ข้ามมาได้
 }));
-
-// --- Initialization ---
-// สร้างตารางที่จำเป็นสำหรับระบบ Admin ใหม่
-(async () => {
-  try {
-    await refreshWorkerMetadata();
-    console.log('Admin metadata refreshed');
-  } catch (err) {
-    console.error('Failed to init admin metadata:', err);
-  }
-})();
 
 app.use('/api', require('./routes/auth'));
 app.use('/api/manageusers', require('./routes/manageusers'));
@@ -46,6 +34,7 @@ app.use('/api/wkdashboard', require('./routes/wkdashboard'));
 app.use('/api/setting', require('./routes/setting'));
 app.use('/api/pm', pmRoutes);
 app.use('/api/assessment', require('./routes/assessment'));
+app.use('/api/issues', require('./routes/workerissueroute'));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 

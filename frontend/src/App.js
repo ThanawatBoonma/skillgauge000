@@ -26,6 +26,7 @@ import ViewTaskWk from './pages/pm/viewtaskwk';
 import ViewTaskWkDetail from './pages/pm/viewtaskwkdetail';
 import PMAssessmentHistory from './pages/pm/PMAssessmenthistory';
 import PMAssessmentHistoryDetail from './pages/pm/PMAssessmenthistorydetail';
+import PMWorkerIssues from './pages/pm/PMWorkerIssues';
 
 // Foreman Pages (ย้ายเข้า folder Foreman)
 import ForemanAssessment from './pages/Foreman/ForemanAssessment';
@@ -44,6 +45,7 @@ import WorkerSettings from './pages/Worker/WorkerSettings';
 import WorkerHistory from './pages/Worker/WorkerHistory';
 import TaskWorkerHistory from './pages/Worker/taskworkerhistory';
 import TaskWorkerHistoryDetail from './pages/Worker/taskworkerhistorydetail';
+import WorkerIssues from './pages/Worker/WorkerIssues';
 
 import './App.css';
 
@@ -80,6 +82,7 @@ function App() {
             <Route path="/pm/viewtaskwkdetail" element={<ViewTaskWkDetail />} />
             <Route path="/pm/assessment-history" element={<PMAssessmentHistory />} />
             <Route path="/pm/assessment-history-detail" element={<PMAssessmentHistoryDetail />} />
+            <Route path="/pm/issues" element={<PMWorkerIssues />} />
 
             {/* Foreman Routes */}
             <Route path="/foreman" element={<ForemanDashboard />} />
@@ -97,6 +100,7 @@ function App() {
             <Route path="/worker/history" element={<WorkerHistory />} />
             <Route path="/worker/task-history" element={<TaskWorkerHistory />} />
             <Route path="/worker/task-history-detail" element={<TaskWorkerHistoryDetail />} />
+            <Route path="/worker/issues" element={<WorkerIssues />} />
             
             {/* เอาหน้าทำข้อสอบ (worker/test) ออกจากตรงนี้  */}
           </Route>

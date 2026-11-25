@@ -191,17 +191,13 @@ const WorkerSettings = () => {
           Worker Portal
         </div>
         <nav className="menu">
-          <button className="menu-item" onClick={() => navigate('/worker')}>หน้าหลัก</button>
-          
+          <button className="menu-item" onClick={() => navigate('/worker')}>หน้าหลัก</button>          
           {/* ใช้ handleStartTest แทนการ navigate ตรงๆ เพื่อเช็คสิทธิ์ */}
           <button className="menu-item" onClick={handleStartTest}>สอบวัดระดับ</button>
-          
+          <button className="menu-item" onClick={() => navigate('/worker/issues')}>รายงานปัญหา</button>
           <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
-
           <button className="menu-item" onClick={() => navigate('/worker/task-history')}>ประวัติการทำงาน</button>
-
-          <button className="menu-item active">ตั้งค่าบัญชี</button>
-          
+          <button className="menu-item active">ตั้งค่าบัญชี</button>          
           <button className="menu-item logout-btn" style={{ marginTop: '20px', color: '#ef4444', background: '#fef2f2', borderColor: '#fee2e2' }} onClick={handleLogoutClick}>
             ออกจากระบบ
           </button>

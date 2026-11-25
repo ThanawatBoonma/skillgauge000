@@ -81,6 +81,7 @@ const TaskWorkerHistory = () => {
         <nav className="menu">
           <button className="menu-item" onClick={() => navigate('/worker')}>หน้าหลัก</button>
           <button className="menu-item" onClick={() => navigate('/worker/test')}>สอบวัดระดับ</button>
+          <button className="menu-item" onClick={() => navigate('/worker/issues')}>รายงานปัญหา</button>
           <button className="menu-item" onClick={() => navigate('/worker/history')}>ประวัติการประเมิน</button>
           <button className="menu-item active">ประวัติการทำงาน</button> 
           <button className="menu-item" onClick={() => navigate('/worker-settings')}>ตั้งค่าบัญชี</button>
